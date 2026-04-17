@@ -1,14 +1,15 @@
 #include <WiFi.h>
 #include <WiFiManager.h> // Install via Library Manager
 #include <WiFiUdp.h>
+#include "config.h"
 
 // Configuration variables
-char static_ip[16] = "192.168.1.100";
-char static_port[6] = "8080";
+char static_ip[16] = SERVER_IP;
+char static_port[6] = SERVER_PORT;
 WiFiUDP udp;
 
 void setup() {
-  // Serial0 = Debug, Serial1 = PIC18LF2580
+  // Serial0 = Debug, Serial1 = PIC18LF2580(use 9600 for many reasons)
   // C3 Pins: RX=20, TX=21
   Serial.begin(115200);
   Serial1.begin(9600, SERIAL_8N1, 20, 21);

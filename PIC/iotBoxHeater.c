@@ -138,9 +138,14 @@ void __interrupt() ISR(void) {
     }
 }
 
-float calc_celsius(uint16_t adc) {
-    if (adc == 0) return 0;
-    float resistance = 100000.0 * ((1023.0 / (float)adc) - 1.0);
+float calc_celsius(uint16_t adc, float pull_down_res) {
+    if (adc == 0 || adc >= 1023) return 0;
+
+    // This math assumes: 3.3V -> Thermistor -> PIC Pin -> Pull-down Resistor -> GND
+    float resistance = pull_down_res * ((1023.0 / (float)adc) - 1.0);
+    
+    // Steinhart-Hart simplified (Beta equation)
+    // 298.15 is 25C in Kelvin. 100000.0 is the thermistor's nominal resistance at 25C.
     float temp = 1.0 / (1.0 / 298.15 + (1.0 / 4350.0) * log(resistance / 100000.0));
     return temp - 273.15;
 }
@@ -188,8 +193,8 @@ void main(void) {
 
         if (flag_10hz) {
             ADCON0bits.GO = 1;
-            float t_heater = calc_celsius(adc_val[0]);
-            float t_box = calc_celsius(adc_val[1]);
+            float t_heater = calc_celsius(adc_val[0], 620.0);    // RA0 with 620 ohm
+            float t_box    = calc_celsius(adc_val[1], 47000.0);  // RA1 with 47k ohm
 
             if (btn_select) { edit_mode = !edit_mode; btn_select = 0; }
             if (btn_up) {
