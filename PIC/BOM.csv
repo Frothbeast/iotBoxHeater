@@ -55,23 +55,23 @@ TR-A17,,FET,RA5,FET TR-A17 SMD
 TR-B17,,FET,RA5,FET TR-B17 TO-220
 X4-7,,Connector/Terminal,RA5,RA5/AN5/ Manual input to TR-A17 or TR-B17.
 SER2,0,Serial,RB0,RB0/INT0
-C2,10k,Resistor,RB0,RB0/INT0 (Menu Button Pull-down)
+C2,,Resistor,RB0,RB0/INT0 (Menu Button Pull-down)
 PUR2,10k,Resistor,RB0,RB0/INT0
-X3-2,yes,Connector/Terminal,RB0,Menu Button
+X3-2,yes,Connector/Terminal,RB0,Menu Button(other side to ground)
 SER6,0,Serial,RB1,RB1/INT1/ SCL for timer or memory chips
-C6,10k,Resistor,RB1,RB1/INT1/ SCL for timer or memory chips (Up Button Pull-down)
+C6,,Resistor,RB1,RB1/INT1/ SCL for timer or memory chips (Up Button Pull-down)
 PUR6,10k,Resistor,RB1,RB1/INT1/ SCL for timer or memory chips
-X3-6,yes,Connector/Terminal,RB1,Up Button
+X3-6,yes,Connector/Terminal,RB1,Up Button(other side to ground)
 SER1,0,Serial,RB2,RB2/INT2
-C1,10k,Resistor,RB2,RB2/INT2 (Down Button Pull-down)
+C1,,Resistor,RB2,RB2/INT2 (Down Button Pull-down)
 PUR1,10k,Resistor,RB2,RB2/INT2
-X3-1,yes,Connector/Terminal,RB2,Down Button
+X3-1,yes,Connector/Terminal,RB2,Down Button(other side to ground)
 SER7,0,Serial,RB3,RB3/ SDA for timer or memory chips
-C7,10k,Resistor,RB3,RB3/ SDA for timer or memory chips (Select Button Pull-down)
+C7,,Resistor,RB3,RB3/ SDA for timer or memory chips (Select Button Pull-down)
 PUR7,10k,Resistor,RB3,RB3/ SDA for timer or memory chips
-X3-7,yes,Connector/Terminal,RB3,Select Button
-LEDR16,1.2k,LED Resistor,RB4,LED resistor for TR-A16 or TR-B16 (Display).
-PUOR16,10k,Resistor,RB4,Pull up output resistor for A16 or B16 (Display).
+X3-7,yes,Connector/Terminal,RB3,Select Button(other side to ground)
+LEDR16,,LED Resistor,RB4,LED resistor for TR-A16 or TR-B16 (Display).
+PUOR16,,Resistor,RB4,Pull up output resistor for A16 or B16 (Display).
 OUTPUT2-1,,Output/Terminal,RB4,Low side drive power out.
 OUTPUT2-2,,Output/Terminal,RB4,TR-A16 or TR-B16 FET low side drive.
 LED16,,LED,RB4,Output indicator for TR-A16 or TR-B16 (Display).
@@ -113,7 +113,7 @@ SER14,,Serial,RC0,RC0/ Manual input to TR-A14 or TR-B14
 TR-A14,,FET,RC0,FET TR-A14 SMD
 TR-B14,,FET,RC0,FET TR-B14 TO-220
 X4-4,,Connector/Terminal,RC0,RC0/ Manual input to TR-A14 or TR-B14.
-SER13,0,Serial,RC1,RC1/ Manual input to TR-A13 or TR-B13
+SER13,100,Serial,RC1,RC1/ Manual input to TR-A13 or TR-B13
 LEDR13,1.2k,LED Resistor,RC1,LED resistor for TR-A13 or TR-B13.
 PDR13,10k,Resistor,RC1,RC1/ Manual input to TR-A13 or TR-B13
 PUOR13,10k,Resistor,RC1,Pull up output resistor for A13 or B13.
@@ -121,13 +121,13 @@ OUTPUT1-5,light,Output/Terminal,RC1,Low side drive power out.
 OUTPUT1-6,light,Output/Terminal,RC1,TR-A13 or TR-B13 FET low side drive.
 LED13,white,LED,RC1,Output indicator for TR-A13 or TR-B13.
 FBD13,yes,Diode,RC1,Fly back diode for corresponding transistor A13 or B13.
-FUSE10A-B13,yes,fuse,RC1,FUSE10A use with TR-B13
+FUSE10A-B13,short,fuse,RC1,FUSE10A use with TR-B13
 TR-B13,yes,FET,RC1,FET TR-B13 TO-220
-X4-3,yes,Connector/Terminal,RC1,Light Output
+X4-3,yes,Connector/Terminal,RC1,Light Output SSR
 Polyfuse-A13,,fuse,RC1,Polyfuse
 PUR13,,Resistor,RC1,RC1/ Manual input to TR-A13 or TR-B13
 TR-A13,,FET,RC1,FET TR-A13 SMD
-SER12,0,Serial,RC2,RC2/ Manual input to TR-A12 or TR-B12
+SER12,100,Serial,RC2,RC2/ Manual input to TR-A12 or TR-B12
 LEDR12,1.2k,LED Resistor,RC2,LED resistor for TR-A12 or TR-B12.
 PUOR12,10k,Resistor,RC2,Pull up output resistor for A12 or B12.
 PUR12,10k,Resistor,RC2,RC2/ Manual input to TR-A12 or TR-B12
@@ -135,13 +135,13 @@ LED12,blue,LED,RC2,Output indicator for TR-A12 or TR-B12.
 OUTPUT1-3,fan,Output/Terminal,RC2,Low side drive power out.
 OUTPUT1-4,fan,Output/Terminal,RC2,TR-A12 or TR-B12 FET low side drive.
 FBD12,yes,Diode,RC2,Fly back diode for corresponding transistor A12 or B12.
-FUSE10A-B12,yes,fuse,RC2,FUSE10A use with TR-B12
+FUSE10A-B12,short,fuse,RC2,FUSE10A use with TR-B12
 TR-B12,yes,FET,RC2,FET TR-B12 TO-220
-X4-2,yes,Connector/Terminal,RC2,Fan Output
+X4-2,yes,Connector/Terminal,RC2,Fan Output SSR
 PDR12,,Resistor,RC2,RC2/ Manual input to TR-A12 or TR-B12
 Polyfuse-A12,,fuse,RC2,Polyfuse
 TR-A12,,FET,RC2,FET TR-A12 SMD
-SER11,0,Serial,RC3,RC3/SCK/ SCK on MAX6674 T/C chip/ Manual input to TR-A11 or TR-B11
+SER11,100,Serial,RC3,RC3/SCK/ SCK on MAX6674 T/C chip/ Manual input to TR-A11 or TR-B11
 LEDR11,1.2k,LED Resistor,RC3,LED resistor for TR-A11 or TR-B11.
 PUOR11,10k,Resistor,RC3,Pull up output resistor for A11 or B11.
 PUR11,10k,Resistor,RC3,RC3/SCK/ SCK on MAX6674 T/C chip/ Manual input to TR-A11 or TR-B11
@@ -149,9 +149,9 @@ OUTPUT1-1,heater,Output/Terminal,RC3,Low side drive power out.
 OUTPUT1-2,heater,Output/Terminal,RC3,TR-A11 or TR-B11 FET low side drive.
 LED11,red,LED,RC3,Output indicator for TR-A11 or TR-B11.
 FBD11,yes,Diode,RC3,Fly back diode for corresponding transistor A11 or B11.
-FUSE10A-B11,yes,fuse,RC3,FUSE10A use with TR-B11
+FUSE10A-B11,short,fuse,RC3,FUSE10A use with TR-B11
 TR-B11,yes,FET,RC3,FET TR-B11 TO-220
-X4-1,yes,Connector/Terminal,RC3,Heater Output
+X4-1,yes,Connector/Terminal,RC3,Heater Output SSR
 PDR11,,Resistor,RC3,RC3/SCK/ SCK on MAX6674 T/C chip/ Manual input to TR-A11 or TR-B11
 Polyfuse-A11,,fuse,RC3,Polyfuse
 TR-A11,,FET,RC3,FET TR-A11 SMD
