@@ -1,56 +1,74 @@
 #include <WiFi.h>
-#include <WiFiManager.h> // Install via Library Manager
-#include <WiFiUdp.h>
+#include <WiFiManager.h> 
+#include <WiFiClient.h>
 #include "config.h"
 
-// Configuration variables
+WiFiClient client;
 char static_ip[16] = SERVER_IP;
 char static_port[6] = SERVER_PORT;
-WiFiUDP udp;
 
 void setup() {
-  // Serial0 = Debug, Serial1 = PIC18LF2580(use 9600 for many reasons)
-  // C3 Pins: RX=20, TX=21
-  Serial.begin(115200);
-  Serial1.begin(9600, SERIAL_8N1, 20, 21);
+  Serial.begin(115200); // Debug
+  Serial1.begin(9600, SERIAL_8N1, 20, 21); // PIC Connection
 
   WiFiManager wm;
-
-  // Add custom fields to the Config Portal
   WiFiManagerParameter custom_ip("ip", "Target IP", static_ip, 16);
   WiFiManagerParameter custom_port("port", "Target Port", static_port, 6);
   wm.addParameter(&custom_ip);
   wm.addParameter(&custom_port);
 
-  // If it can't connect, it opens a portal named "ESP32-Project-Setup"
-  if (!wm.autoConnect("ESP32-Project-Setup")) {
-    Serial.println("Config failed, resetting...");
-    delay(3000);
+  if (!wm.autoConnect("ESP32-Heater-Setup")) {
     ESP.restart();
   }
 
-  // Save the values entered in the portal
   strcpy(static_ip, custom_ip.getValue());
   strcpy(static_port, custom_port.getValue());
-
-  Serial.println("Connected. Transmitting to " + String(static_ip) + ":" + String(static_port));
+  Serial.println("System Ready.");
 }
 
 void loop() {
-  // 1. Data from PIC -> ESP32 -> Network
+  // 1. Handle PIC -> ESP32 (AT Commands & Data)
   if (Serial1.available()) {
-    udp.beginPacket(static_ip, atoi(static_port));
-    while (Serial1.available()) {
-      udp.write(Serial1.read());
+    String command = Serial1.readStringUntil('\n');
+    command.trim();
+
+    if (command.startsWith("AT+CIPSTART")) {
+      // Mimic successful TCP connection
+      if (client.connect(static_ip, atoi(static_port))) {
+        Serial1.println("CONNECT");
+        Serial1.println("OK");
+      }
+    } 
+    else if (command.startsWith("AT+CIPSEND")) {
+      // Tell PIC it's ready to receive data
+      Serial1.println("OK");
+      Serial1.print("> ");
     }
-    udp.endPacket();
+    else if (command.length() >= 10) { 
+      // This is the data payload (e.g., "00FE01A403")
+      // Calculate real RSSI (0-100 scale for your database)
+      int32_t rssi_raw = WiFi.RSSI();
+      uint8_t rssi_scaled = map(constrain(rssi_raw, -100, -40), -100, -40, 0, 100);
+      
+      // Append RSSI to the hex string to make it 12 characters
+      char final_payload[14];
+      sprintf(final_payload, "%s%02X", command.c_str(), rssi_scaled);
+      
+      if (client.connected()) {
+        client.print(final_payload);
+        Serial1.println("SEND OK");
+      }
+    }
+    else {
+      // Generic "OK" for any other initialization AT commands
+      Serial1.println("OK");
+    }
   }
 
-  // 2. Data from Network -> ESP32 -> PIC
-  int packetSize = udp.parsePacket();
-  if (packetSize) {
-    while (udp.available()) {
-      Serial1.write(udp.read());
+  // 2. Handle Server -> PIC (Feedback/ACKs)
+  if (client.available()) {
+    while (client.available()) {
+      Serial1.write(client.read());
     }
   }
 }

@@ -4,8 +4,8 @@ import json
 from datetime import datetime
 import time
 import os
-import requests  # Added missing import
-import urllib3   # Added missing import
+import requests
+import urllib3
 from flask_cors import CORS
 from dotenv import load_dotenv
 import sys
@@ -13,25 +13,19 @@ from decimal import Decimal
 import pytz
 
 static_dir = os.environ.get('STATIC_FOLDER', '/app/client/build')
-
 app = Flask(__name__, static_folder=static_dir, static_url_path='/')
-
-print(f"DEBUG: Static folder is set to: {app.static_folder}")
-print(f"DEBUG: Does path exist? {os.path.exists(app.static_folder)}")
 
 CORS(app)
 load_dotenv()
-CL1P_TOKEN = os.getenv('CL1P_TOKEN')
-CL1P_URL = os.getenv('CL1P_URL')
-LOCATION = os.getenv('LOCATION')
 
+# Env Config
 DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_HOST = os.getenv('DB_HOST')
 DB_NAME = os.getenv('DB_NAME')
-
-if not DB_USER or not DB_PASS:
-    sys.stderr.write(f"ERROR: Environment Variables Missing! User: {DB_USER}, Pass: {'SET' if DB_PASS else 'MISSING'}\n")
+CL1P_TOKEN = os.getenv('CL1P_TOKEN')
+CL1P_URL = os.getenv('CL1P_URL')
+LOCATION = os.getenv('LOCATION')
 
 db_config = {
     'host': DB_HOST,
@@ -48,187 +42,100 @@ def datetime_handler(x):
     raise TypeError(f"Unknown type: {type(x)}")
 
 def get_db_connection():
-    retries = 5
-    while retries > 0:
-        try:
-            conn = mysql.connector.connect(**db_config)
-            return conn
-        except mysql.connector.Error as err:
-            sys.stderr.write(f"Connection failed, retrying in 5s... {err}\n")
-            retries -= 1
-            time.sleep(5)
-    return None
+    try:
+        return mysql.connector.connect(**db_config)
+    except mysql.connector.Error as err:
+        sys.stderr.write(f"DB Error: {err}\n")
+        return None
 
 def bootstrap_db():
-    retries = 5
-    while retries > 0:
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS heaterData (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    esp_ID VARCHAR(50),
-                    datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    tempBox DECIMAL(5,2),
-                    tempHeater DECIMAL(5,2),
-		    sunlight INT,
-                    rssiHigh INT,
-                    rssiLow INT,
-                    readingCount INT,
-                    notes VARCHAR(50)
-                )
-            """)
-            conn.commit()
-            cursor.close()
-            conn.close()
-            print("Database bootstrapped successfully.")
-            return
-        except Exception as e:
-            print(f"Database not ready, retrying... ({retries} left)")
-            retries -= 1
-            time.sleep(5)
+    conn = get_db_connection()
+    if not conn: return
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS heaterData (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            tempBox DECIMAL(5,2),
+            tempHeater DECIMAL(5,2),
+            statusBits INT,
+            rssiAvg INT,
+            readingCount INT,
+            notes VARCHAR(50)
+        )
+    """)
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 @app.route('/api/heaterData')
 def get_data():
     try:
         hours = request.args.get('hours', default=24, type=int)
-        # print(f"DEBUG: Fetching data for last {hours} hours", file=sys.stderr, flush=True)
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        # query = "SELECT datetime, id, tempBox, tempHeater, sunlight, rssiHigh, rssiLow, readingCount, notes FROM heaterData WHERE datetime > NOW() - INTERVAL %s HOUR ORDER BY datetime DESC;"
         query = """
-        SELECT 
-            g1.datetime, 
-            g1.id, 
-            g1.tempBox, 
-            g1.tempHeater, 
-	    g1.sunlight,
-            g1.rssiHigh, 
-            g1.rssiLow, 
-            g1.readingCount - IFNULL((SELECT readingCount 
-                FROM heaterData 
-                WHERE datetime BETWEEN g1.datetime - INTERVAL 10 MINUTE AND g1.datetime
-                ORDER BY ABS(TIMESTAMPDIFF(SECOND, datetime, g1.datetime)) ASC 
-                LIMIT 1), 0) AS readingCount, 
-            g1.notes
+            SELECT datetime, id, tempBox, tempHeater, statusBits, rssiAvg, readingCount, notes 
+            FROM heaterData 
+            WHERE datetime > NOW() - INTERVAL %s HOUR 
+            ORDER BY datetime DESC;
         """
-        cursor.execute(query, (unit, int(hours)))
+        cursor.execute(query, (hours,))
         rows = cursor.fetchall()
-        # print(f"DEBUG: Found {len(rows)} rows", file=sys.stderr, flush=True)
         cursor.close()
         conn.close()
-
         return app.response_class(
             response=json.dumps(rows, default=datetime_handler),
-            status=200,
-            mimetype='application/json'
+            status=200, mimetype='application/json'
         )
-
-
     except Exception as e:
-        print(f"ERROR: {str(e)}", file=sys.stderr, flush=True)
-        return jsonify([]), 200
-
-@app.route('/api/time', methods=['GET'])
-def get_time():
-    ontario_tz = pytz.timezone('America/Toronto')
-    now_ontario = datetime.now(ontario_tz)
-    return jsonify({"time": now_ontario.strftime("%I:%M %p")})
-
-# Serve React App
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def serve(path):
-    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
-    else:
-        return send_from_directory(app.static_folder, 'index.html')
-
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/cl1p', methods=['POST'])
 def handle_cl1p_sync():
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    headers = {
-        "Content-Type": "text/plain",
-        "cl1papitoken": CL1P_TOKEN,
-        "Cache-Control": "no-cache"
-    }
+    headers = {"Content-Type": "text/plain", "cl1papitoken": CL1P_TOKEN}
 
     try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
         if LOCATION == "home":
-            conn = get_db_connection()
-            if not conn:
-                return jsonify({"error": "Failed to connect to local database"}), 500
-
-            cursor = conn.cursor(dictionary=True)
-            # Standardized query to match columns exactly
-            query = "SELECT datetime, id, tempBox, tempHeater, sunlight, rssiHigh, rssiLow, readingCount, notes FROM greenhouseData WHERE datetime >= NOW() - INTERVAL 7 DAY"
+            query = "SELECT * FROM heaterData WHERE datetime >= NOW() - INTERVAL 7 DAY"
             cursor.execute(query)
             rows = cursor.fetchall()
-
-            processed_rows = []
+            
+            processed = []
             for row in rows:
-                new_row = {}
-                for key, value in row.items():
-                    if isinstance(value, datetime):
-                        new_row[key] = value.strftime('%Y-%m-%d %H:%M:%S')
-                    elif isinstance(value, Decimal):
-                        new_row[key] = float(value)
-                    elif value is None:
-                        new_row[key] = ""
-                    else:
-                        new_row[key] = str(value)
-                processed_rows.append(new_row)
+                row['datetime'] = row['datetime'].strftime('%Y-%m-%d %H:%M:%S')
+                if isinstance(row['tempBox'], Decimal): row['tempBox'] = float(row['tempBox'])
+                if isinstance(row['tempHeater'], Decimal): row['tempHeater'] = float(row['tempHeater'])
+                processed.append(row)
 
-            # Use the datetime_handler as a fallback for the json.dumps
-            long_string_payload = json.dumps(processed_rows, default=datetime_handler)
-
-            response = requests.post(CL1P_URL, data=long_string_payload, headers=headers, verify=False, timeout=10)
-
-            cursor.close()
-            conn.close()
-
-            if response.status_code != 200:
-                print(f"HOME ERROR: Cl1p rejected data with status {response.status_code}", file=sys.stderr)
-                return jsonify({"error": f"Cl1p rejection: {response.status_code}"}), 500
-
-            print(f"HOME SUCCESS: Pushed {len(processed_rows)} rows to cl1p.", file=sys.stderr)
-            return jsonify({"status": "pushed to cl1p", "count": len(processed_rows)}), 200
+            requests.post(CL1P_URL, data=json.dumps(processed), headers=headers, verify=False)
+            return jsonify({"status": "pushed", "count": len(processed)})
 
         elif LOCATION == "work":
-            # [Work logic remains the same as your provided version, ensuring singular readingCount]
-            response = requests.get(CL1P_URL, headers=headers, verify=False, timeout=10)
+            response = requests.get(CL1P_URL, headers=headers, verify=False)
             if response.status_code == 200:
-                raw_text = response.text.strip()
-                if not raw_text:
-                    return jsonify({"status": "cl1p empty"}), 200
-
-                cl1p_payloads = json.loads(raw_text)
-                if isinstance(cl1p_payloads, list):
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    added_count = 0
-                    for item in cl1p_payloads:
-                        ts = item.get('datetime')
-                        cursor.execute("SELECT COUNT(*) FROM heaterData WHERE datetime = %s", (ts,))
-                        if cursor.fetchone()[0] == 0:
-                            iq = "INSERT INTO heaterData (datetime, tempBox, tempHeater, sunlight, rssiHigh, rssiLow, readingCount, notes) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-                            cursor.execute(iq, (
-                            ts, item.get('tempBox'), item.get('tempHeater'), item.get('sunlight'), item.get('rssiHigh'),
-                            item.get('rssiLow'), item.get('readingCount'), item.get('notes')))
-                            added_count += 1
-                    conn.commit()
-                    cursor.close()
-                    conn.close()
-                    return jsonify({"status": "pulled", "added": added_count}), 200
-            return jsonify({"status": "no data", "code": response.status_code}), 200
-
+                items = json.loads(response.text)
+                added = 0
+                for item in items:
+                    cursor.execute("SELECT id FROM heaterData WHERE datetime = %s", (item['datetime'],))
+                    if not cursor.fetchone():
+                        iq = """INSERT INTO heaterData (datetime, tempBox, tempHeater, statusBits, rssiAvg, readingCount) 
+                                VALUES (%s, %s, %s, %s, %s, %s)"""
+                        cursor.execute(iq, (item['datetime'], item['tempBox'], item['tempHeater'], 
+                                           item['statusBits'], item['rssiAvg'], item['readingCount']))
+                        added += 1
+                conn.commit()
+                return jsonify({"status": "pulled", "added": added})
+                
+        cursor.close()
+        conn.close()
     except Exception as e:
-        print(f"CRITICAL SYNC ERROR: {str(e)}", file=sys.stderr)
         return jsonify({"error": str(e)}), 500
-    
+
 if __name__ == '__main__':
     bootstrap_db()
-    port_env = int(os.getenv('API_PORT'))
-    app.run(host='0.0.0.0', port=port_env)
+    app.run(host='0.0.0.0', port=int(os.getenv('API_PORT', 5000)))

@@ -4,7 +4,6 @@
 #include <string.h>
 #include <iotBoxHeater.h>
 
-
 #define _XTAL_FREQ 20000000 
 
 // Pin Definitions
@@ -27,7 +26,6 @@
 #define ADDR_INIT  0xFF
 #define ADDR_SP    0x00
 #define ADDR_FAN   0x10
-
 
 // Logic Globals
 volatile float box_setpoint = 25.0;
@@ -58,9 +56,9 @@ uint8_t trend_idx = 0;
 float current_trend = 0.0;
 
 // Wifi Buffers
-char wifi_tx_buf[20];
+char wifi_tx_buf[24]; // Increased for hex payload
 char wifi_rx_buf[21];
-uint16_t wifi_counter = 1;
+uint8_t current_rssi = 0; // New global for RSSI storage
 
 // Software Serial for Display on B4
 void soft_putch(char data) {
@@ -123,8 +121,7 @@ void __interrupt() ISR(void) {
         else { channel = 0; ADCON0bits.CHS = 0; }
     }
     if (INTCONbits.TMR0IF) {
-        /* TMR0H = 0xD8; TMR0L = 0xF0; // 10MHz */
-        TMR0H = 0x3C; TMR0L = 0xAF; // Restored for 20MHz / 10Hz
+        TMR0H = 0x3C; TMR0L = 0xAF; // 20MHz / 10Hz
         flag_10hz = 1; timer_ticks++; wifi_ticks++;
         INTCONbits.TMR0IF = 0;
     }
@@ -140,12 +137,7 @@ void __interrupt() ISR(void) {
 
 float calc_celsius(uint16_t adc, float pull_down_res) {
     if (adc == 0 || adc >= 1023) return 0;
-
-    // This math assumes: 3.3V -> Thermistor -> PIC Pin -> Pull-down Resistor -> GND
     float resistance = pull_down_res * ((1023.0 / (float)adc) - 1.0);
-    
-    // Steinhart-Hart simplified (Beta equation)
-    // 298.15 is 25C in Kelvin. 100000.0 is the thermistor's nominal resistance at 25C.
     float temp = 1.0 / (1.0 / 298.15 + (1.0 / 4350.0) * log(resistance / 100000.0));
     return temp - 273.15;
 }
@@ -158,8 +150,7 @@ void main(void) {
     INTCON3bits.INT2IE = 1; INTCONbits.RBIE = 1;
     
     T0CON = 0x83; INTCONbits.TMR0IE = 1;
-    /* SPBRG = 64; // 10MHz */
-    SPBRG = 129; // Restored for 20MHz / 9600 Baud
+    SPBRG = 129; // 20MHz / 9600 Baud
     TXSTA = 0x24; RCSTA = 0x90; 
     
     if(DATA_EE_Read(ADDR_INIT) == 0xA5) {
@@ -193,8 +184,8 @@ void main(void) {
 
         if (flag_10hz) {
             ADCON0bits.GO = 1;
-            float t_heater = calc_celsius(adc_val[0], 620.0);    // RA0 with 620 ohm
-            float t_box    = calc_celsius(adc_val[1], 47000.0);  // RA1 with 47k ohm
+            float t_heater = calc_celsius(adc_val[0], 620.0);
+            float t_box    = calc_celsius(adc_val[1], 47000.0);
 
             if (btn_select) { edit_mode = !edit_mode; btn_select = 0; }
             if (btn_up) {
@@ -212,6 +203,7 @@ void main(void) {
                 btn_down = 0;
             }
 
+            // PID Logic
             float box_error = box_setpoint - t_box;
             heater_target = box_error * 5.0;
             if (heater_target > 150.0) heater_target = 150.0;
@@ -235,15 +227,25 @@ void main(void) {
                 timer_ticks = 0;
             }
 
+            // NEW: Send 12-character hex payload every 10 seconds
             if (wifi_ticks >= 100) {
-                sprintf(wifi_tx_buf, "hello%u", wifi_counter++);
+                uint8_t status_mask = (HEATER) | (FAN << 1) | (LIGHT << 2);
+                // Payload: BoxTemp(4 hex) + HeatTemp(4 hex) + Status(2 hex) + RSSI(2 hex) = 12 total
+                sprintf(wifi_tx_buf, "%04X%04X%02X%02X", 
+                        (int)(t_box * 10), 
+                        (int)(t_heater * 10), 
+                        status_mask, 
+                        current_rssi);
+                esp_send_cmd(wifi_tx_buf);
                 wifi_ticks = 0;
             }
 
             if (PIR1bits.RCIF) {
                 uint8_t r_idx = 0;
                 while(PIR1bits.RCIF && r_idx < 20) {
-                    wifi_rx_buf[r_idx++] = RCREG;
+                    char c = RCREG;
+                    wifi_rx_buf[r_idx++] = c;
+                    // Logic to extract RSSI from ESP response would go here
                 }
                 wifi_rx_buf[r_idx] = '\0';
             }
@@ -254,7 +256,7 @@ void main(void) {
                 lcd_cmd(LCD_L1);
                 char line1[21]; sprintf(line1, "TX: %-16s", wifi_tx_buf); lcd_print(line1);
                 lcd_cmd(LCD_L4);
-                char line4[21]; sprintf(line4, "%-20s", wifi_rx_buf); lcd_print(line4);
+                char line4[21]; sprintf(line4, "RSSI: -%u dBm   ", current_rssi); lcd_print(line4);
             } else {
                 lcd_cmd(LCD_L1);
                 if (menu_state == 0) lcd_print("Temp Control    ");
@@ -267,7 +269,6 @@ void main(void) {
                 lcd_cmd(LCD_L3);
                 if (menu_state == 1) {
                     char line3[21]; sprintf(line3, "Set Box: %3.0f C", box_setpoint); lcd_print(line3);
-                    lcd_cmd(168 + 9);
                 } else {
                     char line3[21]; sprintf(line3, "Box:     %3.0f C", t_box); lcd_print(line3);
                 }
@@ -275,7 +276,6 @@ void main(void) {
                 lcd_cmd(LCD_L4);
                 if (menu_state == 2) {
                     char line4[21]; sprintf(line4, "Fan: %-10s", (fan_mode==0?"AUTO":(fan_mode==1?"ON":"OFF"))); lcd_print(line4);
-                    lcd_cmd(188 + 5);
                 } else {
                     char line4[21]; sprintf(line4, "Trend: %c%4.1f C/m", (current_trend>=0.1?'/':'\\'), fabs(current_trend)); lcd_print(line4);
                 }
@@ -288,4 +288,3 @@ void main(void) {
         __delay_us(10); 
     }
 }
-
