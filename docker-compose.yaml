@@ -4,7 +4,7 @@ services:
     volumes:
       - ../iotHeater:/iotHeater
     command: >
-      sh -c "chmod +x /iotHeater/database/schema.sh"
+      sh -c "chmod +x /iotBoxHeater/database/schema.sh"
   shared_db_container:
     image: mysql:8.0
     environment:
