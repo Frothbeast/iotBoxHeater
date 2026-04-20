@@ -36,14 +36,14 @@ const ControlBar = ({ cl1pClick, selectedHours, onHoursChange, columnStats, reco
           <span className="unit">{columnStats?.lastDate ?? "N/a"}</span>
         </div>
         <div className="lastTemp">
-          <span className="label">Temperature</span>
-          <span className="value">{columnStats?.lastTemp ?? "N/a"}</span>
+          <span className="label">Box Temperature</span>
+          <span className="value">{columnStats?.lastBoxTemp ?? "N/a"}</span>
           <span className="unit">°C</span>
         </div>
-        <div className="lastCount">
-          <span className="label">Count Delta</span>
-          <span className="value">{columnStats?.lastCount ?? "N/a"}</span>
-          <span className="unit">Counts/10 min</span>
+        <div className="lastTemp">
+          <span className="label">Heater Temperature</span>
+          <span className="value">{columnStats?.lastHeaterTemp ?? "N/a"}</span>
+          <span className="unit">°C</span>
         </div>
         <div className="buttonRow">
           <button className="sidebarButton myBUTTon" onClick={toggleSidebar}>
@@ -66,14 +66,28 @@ const ControlBar = ({ cl1pClick, selectedHours, onHoursChange, columnStats, reco
             labels={records.map((_, i) => i)}
             datasets={[
               {
-                label: "High Temps",
+                label: "Box °C",
                 color: "red",
-                data: records.map(r => r.tempHigh),
+                data: records.map(r => r.tempBox),
               },
               {
-                label: "Low Temps",
+                label: "Heater °C",
                 color: "pink",
-                data: records.map(r => r.tempLow),
+                data: records.map(r => r.tempHeater),
+              }
+            ]}
+            options={getOptions(-10, 100)}
+          />
+        </div>
+        <div className="chartContainer" id="tempChart">
+          <div className="chartWatermark">SUN</div>
+          <HeaterChart
+            labels={records.map((_, i) => i)}
+            datasets={[
+              {
+                label: "Sunlight",
+                color: "red",
+                data: records.map(r => r.sunlight),
               }
             ]}
             options={getOptions(-10, 100)}
@@ -93,16 +107,6 @@ const ControlBar = ({ cl1pClick, selectedHours, onHoursChange, columnStats, reco
                 label: "Low RSSI",
                 color: "cyan",
                 data: records.map(r => r.rssiLow)
-              },
-                            {
-                label: "High RSSI No Dish",
-                color: "green",
-                data: records.map(r => r.rssiHighNoDish)
-              },
-              {
-                label: "Low RSSI No Dish",
-                color: "lightgreen",
-                data: records.map(r => r.rssiLowNoDish)
               }
             ]}
             options={getOptions(-100, -50)}

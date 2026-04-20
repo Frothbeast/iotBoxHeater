@@ -60,14 +60,27 @@ const HeaterSidebar = ({ isOpen, records, selectedHours }) => {
             labels={labels}
             datasets={[
               {
-                label: "High Temps °C",
+                label: "Box Temps °C",
                 color: "red",
                 data: records.map(r => r.tempBox),
               },
               {
-                label: "Low Temps °C",
+                label: "Heater Temps °C",
                 color: "pink",
                 data: records.map(r => r.tempHeater),
+              }
+            ]}
+            options={optTemp}
+          />
+        </div>
+        <div className="chartContainer" id="tempChart">
+          <HeaterChart
+            labels={labels}
+            datasets={[
+              {
+                label: "Sunlight",
+                color: "yellow",
+                data: records.map(r => r.tempBox),
               }
             ]}
             options={optTemp}
@@ -86,16 +99,6 @@ const HeaterSidebar = ({ isOpen, records, selectedHours }) => {
                 label: "Low RSSI heater",
                 color: "cyan",
                 data: records.map(r => r.rssiLow)
-              },
-              {
-                label: "High RSSI remote",
-                color: "green",
-                data: records.map(r => r.rssiHighNoDish)
-              },
-              {
-                label: "Low RSSI remote",
-                color: "lightgreen",
-                data: records.map(r => r.rssiLowNoDish)
               }
             ]}
             options={optRSSI}

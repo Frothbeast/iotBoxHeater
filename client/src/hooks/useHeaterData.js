@@ -19,8 +19,7 @@ export function useHeaterData(hours) {
                             tempHeater: r.tempHeater,
                             rssiHigh: r.rssiHigh,
                             rssiLow: r.rssiLow,
-                            rssiHighNoDish: r.rssiHighNoDish,
-                            rssiLowNoDish: r.rssiLowNoDish,
+                            sunlight: r.sunlight,
                             readingCount: r.readingCount
                     }));
                         setHeaterRecords(mappedData);

@@ -12,7 +12,6 @@ function App() {
   
   const { heaterRecords, isLoading } = useGreenhouseData(selectedHours);
 
-  // 2. Pass GreenRecords to the stats calculator
   const columnStats = useMemo(() => calculateColumnStats (heaterRecords), [heaterRecords]);
 
   const [serverTime, setServerTime] = useState("00:00 AM");
@@ -54,7 +53,7 @@ function App() {
         onHoursChange={setSelectedHours}
         columnStats={columnStats}
         cl1pClick={cl1pClick}
-        records={greenRecords}
+        records={heaterRecords}
         toggleSidebar={() => setSidebarOpen(!isSidebarOpen)}
         isSidebarOpen={isSidebarOpen}
         serverTime={serverTime}
