@@ -66,12 +66,13 @@ def bootstrap_db():
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS greenhouseData (
+                CREATE TABLE IF NOT EXISTS heaterData (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     esp_ID VARCHAR(50),
                     datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    tempHigh DECIMAL(5,2),
-                    tempLow DECIMAL(5,2),
+                    tempBox DECIMAL(5,2),
+                    tempHeater DECIMAL(5,2),
+		    sunlight INT,
                     rssiHigh INT,
                     rssiLow INT,
                     readingCount INT,
@@ -88,46 +89,29 @@ def bootstrap_db():
             retries -= 1
             time.sleep(5)
 
-@app.route('/api/greenhouseData')
+@app.route('/api/heaterData')
 def get_data():
     try:
         hours = request.args.get('hours', default=24, type=int)
         # print(f"DEBUG: Fetching data for last {hours} hours", file=sys.stderr, flush=True)
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        unit = "DISH_UNIT"
-        # query = "SELECT datetime, esp_ID, tempHigh, tempLow, rssiHigh, rssiLow, readingCount, notes FROM greenhouseData WHERE esp_ID = %s AND datetime > NOW() - INTERVAL %s HOUR ORDER BY datetime DESC;"
+        # query = "SELECT datetime, id, tempBox, tempHeater, sunlight, rssiHigh, rssiLow, readingCount, notes FROM heaterData WHERE datetime > NOW() - INTERVAL %s HOUR ORDER BY datetime DESC;"
         query = """
         SELECT 
             g1.datetime, 
-            g1.esp_ID, 
-            g1.tempHigh, 
-            g1.tempLow, 
+            g1.id, 
+            g1.tempBox, 
+            g1.tempHeater, 
+	    g1.sunlight,
             g1.rssiHigh, 
             g1.rssiLow, 
             g1.readingCount - IFNULL((SELECT readingCount 
-                FROM greenhouseData 
-                WHERE esp_ID = 'RSSI_MONITOR_01' 
-                AND datetime BETWEEN g1.datetime - INTERVAL 10 MINUTE AND g1.datetime
+                FROM heaterData 
+                WHERE datetime BETWEEN g1.datetime - INTERVAL 10 MINUTE AND g1.datetime
                 ORDER BY ABS(TIMESTAMPDIFF(SECOND, datetime, g1.datetime)) ASC 
                 LIMIT 1), 0) AS readingCount, 
-            g1.notes,
-            (SELECT rssiHigh 
-             FROM greenhouseData 
-             WHERE esp_ID = 'RSSI_MONITOR_01' 
-             AND datetime BETWEEN g1.datetime - INTERVAL 10 MINUTE AND g1.datetime
-             ORDER BY ABS(TIMESTAMPDIFF(SECOND, datetime, g1.datetime)) ASC 
-             LIMIT 1) AS rssiHighNoDish,
-            (SELECT rssiLow 
-             FROM greenhouseData 
-             WHERE esp_ID = 'RSSI_MONITOR_01' 
-             AND datetime BETWEEN g1.datetime - INTERVAL 10 MINUTE AND g1.datetime
-             ORDER BY ABS(TIMESTAMPDIFF(SECOND, datetime, g1.datetime)) ASC 
-             LIMIT 1) AS rssiLowNoDish
-        FROM greenhouseData g1
-        WHERE g1.esp_ID = %s 
-        AND g1.datetime > NOW() - INTERVAL %s HOUR 
-        ORDER BY g1.datetime DESC;
+            g1.notes
         """
         cursor.execute(query, (unit, int(hours)))
         rows = cursor.fetchall()
@@ -179,7 +163,7 @@ def handle_cl1p_sync():
 
             cursor = conn.cursor(dictionary=True)
             # Standardized query to match columns exactly
-            query = "SELECT datetime, esp_ID, tempHigh, tempLow, rssiHigh, rssiLow, readingCount, notes FROM greenhouseData WHERE datetime >= NOW() - INTERVAL 7 DAY"
+            query = "SELECT datetime, id, tempBox, tempHeater, sunlight, rssiHigh, rssiLow, readingCount, notes FROM greenhouseData WHERE datetime >= NOW() - INTERVAL 7 DAY"
             cursor.execute(query)
             rows = cursor.fetchall()
 
@@ -227,11 +211,11 @@ def handle_cl1p_sync():
                     added_count = 0
                     for item in cl1p_payloads:
                         ts = item.get('datetime')
-                        cursor.execute("SELECT COUNT(*) FROM greenhouseData WHERE datetime = %s", (ts,))
+                        cursor.execute("SELECT COUNT(*) FROM heaterData WHERE datetime = %s", (ts,))
                         if cursor.fetchone()[0] == 0:
-                            iq = "INSERT INTO greenhouseData (datetime, esp_ID, tempHigh, tempLow, rssiHigh, rssiLow, readingCount, notes) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                            iq = "INSERT INTO heaterData (datetime, tempBox, tempHeater, sunlight, rssiHigh, rssiLow, readingCount, notes) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
                             cursor.execute(iq, (
-                            ts, item.get('esp_ID'), item.get('tempHigh'), item.get('tempLow'), item.get('rssiHigh'),
+                            ts, item.get('tempBox'), item.get('tempHeater'), item.get('sunlight'), item.get('rssiHigh'),
                             item.get('rssiLow'), item.get('readingCount'), item.get('notes')))
                             added_count += 1
                     conn.commit()

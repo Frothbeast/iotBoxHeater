@@ -10,7 +10,7 @@ function App() {
   const [selectedHours, setSelectedHours] = useState(24);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   
-  const { heaterRecords, isLoading } = useGreenhouseData(selectedHours);
+  const { heaterRecords, isLoading } = useHeaterData(selectedHours);
 
   const columnStats = useMemo(() => calculateColumnStats (heaterRecords), [heaterRecords]);
 

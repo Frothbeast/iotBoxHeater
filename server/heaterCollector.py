@@ -1,4 +1,3 @@
-# greenhouseCollector.py
 import os
 import socket
 import mysql.connector
@@ -15,8 +14,6 @@ DB_CONFIG = {
     'database': os.getenv('DB_NAME'),
 }
 
-# Tracking state for multiple ESP devices
-# Added 'last_flush' to track timing
 device_states = {}
 
 
@@ -30,6 +27,9 @@ def flush_device(device_id):
         # Calculate stats matching your schema
         t_high = max(state["temps"])
         t_low = min(state["temps"])
+
+
+	s_light = 
         r_high = max(state["rssis"])
         r_low = min(state["rssis"])
         count = len(state["temps"])
@@ -39,11 +39,11 @@ def flush_device(device_id):
         cursor = conn_db.cursor()
 
         query = """
-            INSERT INTO greenhouseData 
-            (esp_ID, datetime, tempHigh, tempLow, rssiHigh, rssiLow, readingCount) 
+            INSERT INTO heaterData 
+            (datetime, tempBox, tempHeater, sunlight, rssiHigh, rssiLow, readingCount) 
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-        cursor.execute(query, (device_id, now, t_high, t_low, r_high, r_low, count))
+        cursor.execute(query, ( now, t_Box, t_heater, s_light, r_high, r_low, count))
 
         conn_db.commit()
         cursor.close()
