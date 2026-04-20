@@ -1,0 +1,139 @@
+
+.heaterTableContainer {
+  top: 0;
+  display: inline-block;
+  container-name: HeaterContainer;
+  container-type: inline-size;
+  width: 100%;
+  height: 100vh;
+  overflow-y: scroll;
+  max-width: 100%;
+  min-width: 400px;
+  border: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.heaterTableContainer::-webkit-scrollbar {
+    display: none;
+}
+
+.heaterTable {
+  width: 100%;
+  min-width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  /* table-layout: auto; */
+  table-layout: fixed; /* Matches sumpTable.css for edge-to-edge layout */
+  background-color: var(--menu-background);
+  color: var(--menu-colour);
+}
+:root {    
+  --heaterTable__header-backgroundColour: color-mix(in oklch, var(--menu-background), white 30%);
+  --heaterTable__header-colour: color-mix(in oklch, var(--menu-colour), white 30%);
+  --heaterTable__header-font: 4cqw;
+  --heaterTable__data-font: 4cqw;
+  --heaterTable__header-smallFont: 2.5cqw;
+  --heaterTable__headerRow-height: 5.5cqw; 
+  --heaterTable__header-height: calc(3 * var(--heaterTable__headerRow-height));
+}
+@container HeaterContainer (min-width: 1200px) {
+.heaterTable {
+    --heaterTable__header-font: 3cqw;
+    --heaterTable__data-font: 3cqw;
+    --heaterTable__header-smallFont: 1.75cqw;
+    --heaterTable__headerRow-height: 4.5cqw; 
+    --heaterTable__header-height: calc(4 * var(--heaterTable__headerRow-height));
+  }
+}
+
+.heaterTableHeader { 
+  top: var(--controlBar-height);
+  position: sticky;
+  z-index: 20;
+  background-color: var(--menu-background);
+}
+
+/* Column widths: 100% divided by 7 columns = 14.28% 
+   This prevents the data from bunching up on the left.
+*/
+.heaterTableHeaderCellRow1,
+.heaterTableHeaderCellRow2,
+.heaterTableHeaderCellRow3,
+.heaterTableHeaderCell1Row1,
+.heaterTableHeaderCell1Row2,
+.heaterTableHeaderCell2Row1,
+.heaterTableCell,
+.heaterTableCell1,
+.heaterTableCell2 {
+  width: 14.28% !important;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.heaterTableHeaderCell1Row2{
+  text-align: right;
+}
+
+.heaterTableCell1, 
+.heaterTableCell2,
+[class^="heaterTableHeaderCell1Row"],
+[class^="heaterTableHeaderCell2Row"] {
+  position: sticky;
+  left: 0;
+  background-color: var(--menu-background);
+  z-index: 10;
+}
+
+.heaterTableHeaderCellRow1, 
+.heaterTableHeaderCell1Row1 {
+  height: var(--heaterTable__headerRow-height);
+  top: var(--controlBar-height);
+  font-size: var(--heaterTable__header-smallFont);
+} 
+
+.heaterTableHeaderCell1Row1 {
+  font-size: var(--heaterTable__header-font);
+} 
+
+.heaterTableHeaderCellRow2, 
+.heaterTableHeaderCell1Row2 {
+  top: calc(var(--heaterTable__headerRow-height) + var(--controlBar-height));
+}
+
+.heaterTableHeaderCellRow3, 
+.heaterTableHeaderCell1Row3 {
+  top: calc(2 * var(--heaterTable__headerRow-height) + var(--controlBar-height));
+}
+
+.heaterTableBody .heaterTableRow {
+    font-size: var(--heaterTable__data-font);
+}
+
+.heaterTableBody .heaterTableRow:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.heaterTableBody .heaterTableRow:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.heaterTablePlaceholder{
+  height: var(--heaterTable__header-height);
+
+}
+
+.heaterTableCell2 {
+    font-size: var(--heaterTable__header-smallFont);
+}
+
+.stack-text {
+  word-spacing: 100vw;   /* Forces the next word to the next line */
+  white-space: normal;   /* Ensures wrapping is allowed */
+  word-break: keep-all;  /* Prevents the words themselves from breaking */
+}
+
+.smaller{
+  --heaterTable__header-smallFont: 2.5cqw;  
+
+}
