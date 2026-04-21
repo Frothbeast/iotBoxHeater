@@ -13,95 +13,63 @@ const HeaterSidebar = ({ isOpen, records, selectedHours }) => {
   const createConfig = (unit) => ({
     responsive: true,
     maintainAspectRatio: false,
-    elements: {
-      point: {
-        radius: 0, 
-        hoverRadius: 6, 
-        hitRadius: 7, 
-      }
-    },
     plugins: {
       legend: {
         display: true,
         position: 'top',
-        align: 'start',
-        labels: { boxWidth: 40, boxHeight: 2, padding: 1, font: { size: 22 }, color: 'lightgrey' }
+        labels: { boxWidth: 20, font: { size: 14 }, color: 'lightgrey' }
       },
       zoom: {
-        limits: { x: { min: 'original', max: 'original' }, y: { min: 'original', max: 'original' } },
-        pan: { enabled: true, mode: 'xy' },
-        zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' }
+        pan: { enabled: true, mode: 'x' },
+        zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
       }
     },
     scales: {
       x: {
         type: 'time',
-        time: { unit: unit, displayFormats: { minute: 'h:mm', hour: 'ha', day: 'MMM d:ha' } },
-        ticks: { color: 'lightgrey', font: { size: 14 } },
+        time: { unit: unit },
+        ticks: { color: 'lightgrey' },
         grid: { color: 'rgba(255,255,255,0.1)' }
       },
       y: {
-        ticks: { color: 'lightgrey', font: { size: 14 } },
+        ticks: { color: 'lightgrey' },
         grid: { color: 'rgba(255,255,255,0.1)' }
       }
     }
   });
 
-  const optTemp = useMemo(() => createConfig(timeUnit), [timeUnit]);
-  const optRSSI = useMemo(() => createConfig(timeUnit), [timeUnit]);
-
+  const config = useMemo(() => createConfig(timeUnit), [timeUnit]);
   const labels = records.map(r => new Date(r.datetime));
 
   return (
     <div className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebarContent">
-        <div className="chartContainer" id="tempChart">
+        <div className="chartContainer">
           <HeaterChart
             labels={labels}
             datasets={[
-              {
-                label: "Box Temps °C",
-                color: "red",
-                data: records.map(r => r.tempBox),
-              },
-              {
-                label: "Heater Temps °C",
-                color: "pink",
-                data: records.map(r => r.tempHeater),
-              }
+              { label: "Box °C", color: "red", data: records.map(r => r.tempBox) },
+              { label: "Heater °C", color: "pink", data: records.map(r => r.tempHeater) }
             ]}
-            options={optTemp}
-          />
-        </div>
-        <div className="chartContainer" id="tempChart">
-          <HeaterChart
-            labels={labels}
-            datasets={[
-              {
-                label: "Sunlight",
-                color: "yellow",
-                data: records.map(r => r.tempBox),
-              }
-            ]}
-            options={optTemp}
+            options={config}
           />
         </div>
         <div className="chartContainer">
           <HeaterChart
             labels={labels}
             datasets={[
-              {
-                label: "High RSSI heater",
-                color: "blue",
-                data: records.map(r => r.rssiHigh)
-              },
-              {
-                label: "Low RSSI heater",
-                color: "cyan",
-                data: records.map(r => r.rssiLow)
-              }
+              { label: "Status Bits", color: "yellow", data: records.map(r => r.statusBits) }
             ]}
-            options={optRSSI}
+            options={config}
+          />
+        </div>
+        <div className="chartContainer">
+          <HeaterChart
+            labels={labels}
+            datasets={[
+              { label: "RSSI %", color: "cyan", data: records.map(r => r.rssiAvg) }
+            ]}
+            options={config}
           />
         </div>
       </div>

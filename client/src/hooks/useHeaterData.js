@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 export function useHeaterData(hours) {
     const [heaterRecords, setHeaterRecords] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+
     useEffect(() => {
         let interval;
 
@@ -12,17 +12,7 @@ export function useHeaterData(hours) {
                 .then(res => res.json())
                 .then(data => {
                     if (Array.isArray(data)) {
-                        const mappedData = data.map(r => ({
-                            ...r,
-                            datetime: r.datetime,
-                            tempBox: r.tempBox,
-                            tempHeater: r.tempHeater,
-                            rssiHigh: r.rssiHigh,
-                            rssiLow: r.rssiLow,
-                            sunlight: r.sunlight,
-                            readingCount: r.readingCount
-                    }));
-                        setHeaterRecords(mappedData);
+                        setHeaterRecords(data); // Fields: datetime, tempBox, tempHeater, statusBits, rssiAvg, readingCount
                     }
                     setIsLoading(false);
                 })
@@ -34,20 +24,14 @@ export function useHeaterData(hours) {
 
         const setupInterval = () => {
             if (interval) clearInterval(interval);
-            
-            // Poll at 1s if visible, 60s if hidden to save MSI server resources
-            const pollRate = document.visibilityState === 'visible' ? 1000 : 60000;
+            const pollRate = document.visibilityState === 'visible' ? 5000 : 60000;
             interval = setInterval(fetchData, pollRate);
         };
 
-        // Initial fetch and start polling
         fetchData();
         setupInterval();
 
-        const handleVisibilityChange = () => {
-            setupInterval();
-        };
-
+        const handleVisibilityChange = () => setupInterval();
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
