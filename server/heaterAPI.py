@@ -140,6 +140,13 @@ def handle_cl1p_sync():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/time', methods=['GET'])
+def get_time():
+    ontario_tz = pytz.timezone('America/Toronto')
+    now_ontario = datetime.now(ontario_tz)
+    return jsonify({"time": now_ontario.strftime("%I:%M %p")})
+
+
 if __name__ == '__main__':
     bootstrap_db()
     app.run(host='0.0.0.0', port=int(os.getenv('API_PORT', 5000)))
