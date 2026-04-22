@@ -68,6 +68,10 @@ def bootstrap_db():
     cursor.close()
     conn.close()
 
+@app.route('/')
+def serve_index():
+    return send_from_directory(app.static_folder, 'index.html')
+
 @app.route('/api/heaterData')
 def get_data():
     try:
