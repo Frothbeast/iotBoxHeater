@@ -98,6 +98,7 @@ const ControlBar = ({ cl1pClick, selectedHours, onHoursChange, columnStats, reco
           <button onClick={cl1pClick} className="cl1pButton myBUTTon">CL1P</button>
           <select className="selectedHours myBUTTon" value={selectedHours} onChange={(e) => onHoursChange(Number(e.target.value))}>
             <option value={1}>1 Hour</option>
+            <option value={4}>4 Hour</option>
             <option value={8}>8 Hour</option>
             <option value={24}>24 Hour</option>
           </select>
