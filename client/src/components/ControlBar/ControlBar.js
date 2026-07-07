@@ -59,7 +59,7 @@ const ControlBar = ({ cl1pClick, selectedHours, onHoursChange, columnStats, reco
   return (
     <header className="controlBar">
       <div className="brandSection">
-        <div className="brand">Heater</div>
+        <div className="brand">Heated Box</div>
         <div className="serverTime">
           <span className="stLabel">Server Time:</span>
           <span>{serverTime ?? "00:00:00"}</span>
@@ -68,9 +68,9 @@ const ControlBar = ({ cl1pClick, selectedHours, onHoursChange, columnStats, reco
       
       <div className="centerSection">
         <div className="lastRun">
-          <span className="label">Last Reading</span>
+          <span className="value">Last Reading</span>
           <span className="value">{columnStats?.lastTime ?? "N/a"}</span>
-          <span className="label">Control:{columnStats?.control ?? "N/a"}</span>
+          <span className="value">Control:{columnStats?.control ?? "N/a"}</span>
         </div>
         <div className="lastTemp">
           <span className="label">SP</span>

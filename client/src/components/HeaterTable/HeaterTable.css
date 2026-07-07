@@ -31,20 +31,11 @@
 :root {    
   --heaterTable__header-backgroundColour: color-mix(in oklch, var(--menu-background), white 30%);
   --heaterTable__header-colour: color-mix(in oklch, var(--menu-colour), white 30%);
-  --heaterTable__header-font: 2cqw;
-  --heaterTable__data-font: 2cqw;
+  --heaterTable__header-font: 3cqw;
+  --heaterTable__data-font: 3cqw;
   --heaterTable__header-smallFont: 2.5cqw;
-  --heaterTable__headerRow-height: 4cqw; 
-  --heaterTable__header-height: calc(1 * var(--heaterTable__headerRow-height));
-}
-@container HeaterContainer (min-width: 1200px) {
-.heaterTable {
-    --heaterTable__header-font: 3cqw;
-    --heaterTable__data-font: 3cqw;
-    --heaterTable__header-smallFont: 1.75cqw;
-    --heaterTable__headerRow-height: 4.5cqw; 
-    --heaterTable__header-height: calc(1 * var(--heaterTable__headerRow-height));
-  }
+  --heaterTable__headerRow-height: 4.5cqw; 
+  --heaterTable__header-height: var(--heaterTable__headerRow-height);
 }
 
 .heaterTableHeader { 
