@@ -8,7 +8,6 @@ const HeaterTable = ({ records = [], columnStats }) => {
         <div className="heaterTableContainer">
             <table className="heaterTable">
                 <thead className="heaterTableHeader">
-                    <tr className="heaterTablePlaceholder"><th colSpan="6"></th></tr>
                     <tr className="heaterTableHeaderRow1">
                         <th className="heaterTableHeaderCellRow1">Time</th>
                         <th className="heaterTableHeaderCellRow1 smaller">Setpoint</th>
@@ -19,6 +18,7 @@ const HeaterTable = ({ records = [], columnStats }) => {
                     </tr>
                 </thead>
                 <tbody className="heaterTableBody">
+                    <tr className="heaterTablePlaceholder"><th colSpan="6"></th></tr>
                     {records.map((record) => (
                         <tr key={record.id} className="heaterTableRow">
                             <td className="heaterTableCell2">
