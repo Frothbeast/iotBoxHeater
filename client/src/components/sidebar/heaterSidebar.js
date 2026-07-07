@@ -57,7 +57,7 @@ const HeaterSidebar = ({ isOpen, records, selectedHours }) => {
             datasets={[
               { label: "Setpoint", color: "lightgreen", data: records.map(r => r.setpoint), borderWidth: 0.5, tension: 0 },
               { label: "Box °C", color: "pink", data: records.map(r => r.tempBox), borderWidth: 0.5, tension: 0 },
-              { label: "Heater °C", color: "yellow", data: records.map(r => r.tempHeater), borderWidth: 0.5, tension: 0 }
+              { label: "Heater (1=10)°C", color: "yellow", data: records.map(r => r.tempHeater/10), borderWidth: 0.5, tension: 0 }
             ]}
             options={config}
           />
