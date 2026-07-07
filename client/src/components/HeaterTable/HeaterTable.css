@@ -34,7 +34,7 @@
   --heaterTable__header-font: 2cqw;
   --heaterTable__data-font: 2cqw;
   --heaterTable__header-smallFont: 2.5cqw;
-  --heaterTable__headerRow-height: 5.5cqw; 
+  --heaterTable__headerRow-height: 4cqw; 
   --heaterTable__header-height: calc(1 * var(--heaterTable__headerRow-height));
 }
 @container HeaterContainer (min-width: 1200px) {
@@ -94,17 +94,8 @@
 
 .heaterTableHeaderCell1Row1 {
   font-size: var(--heaterTable__header-font);
-} 
-
-.heaterTableHeaderCellRow2, 
-.heaterTableHeaderCell1Row2 {
-  top: calc(var(--heaterTable__headerRow-height) + var(--controlBar-height));
 }
 
-.heaterTableHeaderCellRow3, 
-.heaterTableHeaderCell1Row3 {
-  top: calc(2 * var(--heaterTable__headerRow-height) + var(--controlBar-height));
-}
 
 .heaterTableBody .heaterTableRow {
     font-size: var(--heaterTable__data-font);
@@ -119,7 +110,7 @@
 }
 
 .heaterTablePlaceholder{
-  height: var(--heaterTable__header-height);
+  height: var(--heaterTable__header-height) + var(--controlBar-height);
 
 }
 
