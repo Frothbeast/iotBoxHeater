@@ -24,7 +24,7 @@ const HeaterSidebar = ({ isOpen, records, selectedHours }) => {
       legend: {
         display: true,
         position: 'top',
-        labels: { boxWidth: 20, font: { size: 14 }, color: 'lightgrey' }
+        labels: { usePointStyle: true, pointStyle: 'line',boxWidth: 20, font: { size: 14 }, color: 'lightgrey' }
       },
       zoom: {
         pan: { enabled: true, mode: 'x' },
@@ -55,9 +55,9 @@ const HeaterSidebar = ({ isOpen, records, selectedHours }) => {
           <HeaterChart
             labels={labels}
             datasets={[
-              { label: "Setpoint", color: "white", data: records.map(r => r.setpoint) },
-              { label: "Box °C", color: "red", data: records.map(r => r.tempBox) },
-              { label: "Heater °C", color: "pink", data: records.map(r => r.tempHeater) }
+              { label: "Setpoint", color: "white", data: records.map(r => r.setpoint), borderWidth: 0.5, tension: 0 },
+              { label: "Box °C", color: "red", data: records.map(r => r.tempBox), borderWidth: 0.5, tension: 0 },
+              { label: "Heater °C", color: "pink", data: records.map(r => r.tempHeater), borderWidth: 0.5, tension: 0 }
             ]}
             options={config}
           />
@@ -67,7 +67,7 @@ const HeaterSidebar = ({ isOpen, records, selectedHours }) => {
           <HeaterChart
             labels={labels}
             datasets={[
-              { label: "RSSI", color: "cyan", data: records.map(r => r.rssi) }
+              { label: "RSSI", color: "cyan", data: records.map(r => r.rssi), borderWidth: 0.5, tension: 0 }
             ]}
             options={config}
           />
