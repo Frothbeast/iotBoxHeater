@@ -73,7 +73,7 @@
 }
 
 .buttonRow > * {
-  flex: 1;
+  /* Remove flex: 1 from here */
   font-family: inherit;
   font-size: 1.2rem;
   display: flex;
@@ -81,6 +81,18 @@
   justify-content: center;
   box-sizing: border-box;
   padding: 10px;
+}
+
+/* Assign 1/7 (approx 14.28%) to the three buttons */
+.buttonRow .setpointup, 
+.buttonRow .setpointdown, 
+.buttonRow .setpointsend {
+  flex: 1 1 14.28%;
+}
+
+/* Assign the remaining space (approx 57.14%) to the value div */
+.buttonRow .setpoint.value {
+  flex: 4 1 57.14%;
 }
 
 .setpoint.value {
