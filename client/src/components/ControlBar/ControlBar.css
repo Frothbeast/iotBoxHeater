@@ -220,3 +220,6 @@ input[type="submit"] {
 .setpointsend.success {
   background-color: green;
 }
+.setpointsend.error {
+  background-color: orange; /* Or red, to indicate persistent failure */
+}

@@ -7,15 +7,26 @@ const ControlBar = ({ cl1pClick, selectedHours, onHoursChange, columnStats, reco
   const [sendStatus, setSendStatus] = useState('idle'); // 'idle', 'sending', 'success'
   
   const handleSend = async () => {
-    setSendStatus('sending');
-    const success = await sendHexCommand(newsetpoint.toString(10).padEnd(3, '0'));
+    setSendStatus('sending'); // Stays red during the request
     
-    if (success) {
-      setSendStatus('success');
-      setTimeout(() => setSendStatus('idle'), 1000);
-    } else {
-      setSendStatus('idle'); // Or 'error'
+    try {
+      const response = await fetch(`${process.env.REACT_APP_HEATERBOX_API_URL}/api/send-command`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({hex: newsetpoint.toString(10).padEnd(3, '0')})
+      });
+
+      if (response.ok) {
+        setSendStatus('success'); // Turns green[cite: 9]
+      } else {
+        setSendStatus('error'); // Stays red/orange[cite: 9]
+      }
+    } catch (error) {
+      setSendStatus('error'); // Handles network/fetch failure
     }
+
+    // Reset to idle after 3 seconds
+    setTimeout(() => setSendStatus('idle'), 3000);
   };
 
   const sendHexCommand = async (hex) => {
