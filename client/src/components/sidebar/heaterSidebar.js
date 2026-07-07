@@ -13,6 +13,13 @@ const HeaterSidebar = ({ isOpen, records, selectedHours }) => {
   const createConfig = (unit) => ({
     responsive: true,
     maintainAspectRatio: false,
+    elements: {
+      point: {
+        radius: 0, 
+        hoverRadius: 6, 
+        hitRadius: 7, 
+      }
+    },
     plugins: {
       legend: {
         display: true,

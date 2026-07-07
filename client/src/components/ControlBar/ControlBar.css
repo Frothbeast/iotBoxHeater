@@ -73,7 +73,7 @@
 }
 
 .buttonRow > * {
-  flex: 1;
+  /* Remove flex: 1 from here */
   font-family: inherit;
   font-size: 1.2rem;
   display: flex;
@@ -83,14 +83,27 @@
   padding: 10px;
 }
 
+/* Assign 1/7 (approx 14.28%) to the three buttons */
+.buttonRow .setpointup, 
+.buttonRow .setpointdown, 
+.buttonRow .setpointsend {
+  flex: 1 1 14.28%;
+}
+
+/* Assign the remaining space (approx 57.14%) to the value div */
+.buttonRow .setpoint.value {
+  flex: 4 1 57.14%;
+}
+
 .setpoint.value {
   background: #34495e;
   color: white;
   border: 1px solid #2c3e50;
   border-radius: 4px;
+  padding: 0 1cqw;
 }
 
-.sidebarButton,.cl1pButton, .selectedHours, .setpintup, .setpointsend, .setpointdown {
+.sidebarButton, .cl1pButton, .selectedHours, .setpointup, .setpointsend, .setpointdown {
   flex: 1;
   display: flex;
   align-items: center;
