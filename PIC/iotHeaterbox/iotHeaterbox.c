@@ -187,7 +187,7 @@ volatile uint16_t t_b = 0.0;
 volatile uint8_t adc_ready = 0;
 volatile uint8_t isr_channel = 0;
 volatile int16_t box_setpoint = 0;
-volatile int16_t heater_limit = 150;
+volatile int16_t heater_limit = 100;
 volatile uint16_t adc_val[2];
 volatile uint8_t flag_10hz = 0;
 volatile uint8_t wifi_ticks = 0;
@@ -369,7 +369,7 @@ void __interrupt() ISR(void) {
     if (PIR1bits.TMR1IF) {
         static uint16_t timer1_counter = 0;
         timer1_counter++;
-        if (timer1_counter >= 572) {
+        if (timer1_counter >= 57) {
             time_to_send = 1;
             timer1_counter = 0;
         }
@@ -764,6 +764,15 @@ void main(void) {
             static uint8_t retry_count = 0;
             if (time_to_send) {
                 time_to_send = 0;
+                
+                // Flush RX buffer before transmitting
+                INTCONbits.GIE = 0; // Disable interrupts to ensure atomic clearing
+                for(uint8_t i = 0; i < 13; i++) {
+                    rx_buf[i] = 0;
+                }
+                rx_idx = 0;
+                esp_mode = ESP_IDLE_MODE; // Ensure ESP is in idle mode before sending
+                INTCONbits.GIE = 1; // Restore interrupts
 
                 if (esp_active) {
                     char packet_buffer[24];
