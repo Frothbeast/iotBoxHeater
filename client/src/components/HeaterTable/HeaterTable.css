@@ -23,8 +23,7 @@
   min-width: 100%;
   border-collapse: collapse;
   border-spacing: 0;
-  /* table-layout: auto; */
-  table-layout: fixed; /* Matches sumpTable.css for edge-to-edge layout */
+  table-layout: fixed;
   background-color: var(--menu-background);
   color: var(--menu-colour);
 }
@@ -101,7 +100,7 @@
 }
 
 .heaterTablePlaceholder{
-  height: var(--heaterTable__header-height) + var(--controlBar-height);
+  height: calc( var(--heaterTable__header-height) + var(--controlBar-height));
 
 }
 
