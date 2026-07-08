@@ -146,6 +146,8 @@ const int16_t box_temp_lut[1024] = {
 };
 
 
+
+
 #define _XTAL_FREQ 20000000
 
 volatile uint16_t esp_timeout_counter = 0;
@@ -153,6 +155,16 @@ volatile uint8_t esp_active = 1; // 1 = Attempt communication, 0 = Skip communic
 
 volatile uint8_t CONTROL = 0;
 volatile uint8_t EXTRA = 0;
+
+#define MAX_DUTY 100
+#define SHIFT_FACTOR 8 // Use 8 bits for 256x resolution (1/256 precision)
+
+
+long integral_sum = 0; 
+int kp = 2; // Proportional gain
+int ki = 1; // Integral gain (very slow)
+int current_duty_steps = 0; // 0 to 20 (representing 0% to 100%)
+int step_counter = 0;       // Increments every 6-second interrupt
 
 #define HEATER LATCbits.LATC3
 #define FAN    LATCbits.LATC1
@@ -647,6 +659,44 @@ uint8_t wait_for_handshake(uint8_t send_byte) {
         }
     }
     return 0;
+}
+
+void calculate_pid(int setpoint, int current_temp) {
+    int error = setpoint - current_temp;
+
+    // Integral calculation with clamping (Anti-Windup)
+    integral_sum += (error * ki);
+    
+    // Clamp integral_sum to prevent windup
+    if (integral_sum > (MAX_DUTY << SHIFT_FACTOR)) integral_sum = (MAX_DUTY << SHIFT_FACTOR);
+    if (integral_sum < 0) integral_sum = 0;
+
+    // Output calculation (P + I)
+    // Shift right to bring back to 0-100 scale
+    int output = ((error * kp) + (integral_sum >> SHIFT_FACTOR));
+
+    // Clamp total output to 0-100 range
+    if (output > MAX_DUTY) output = MAX_DUTY;
+    if (output < 0) output = 0;
+
+    // Convert 0-100 to your 20 steps (5% increments)
+    // This gives you 0, 5, 10... 100
+    int current_duty_steps = (output / 5) * 5; 
+    
+}
+
+void update_heater_state() {
+    // 1. Calculate duty_steps (0-20) from your PID logic
+    // (Ensure your PID output is scaled to 0-20 instead of 0-100)
+    
+    // 2. Control logic
+    if (step_counter < current_duty_steps) {
+        // Heater ON
+        HEATER = 1; 
+    } else {
+        // Heater OFF
+        HEATER = 0;
+    }
 }
 
 void main(void) {
