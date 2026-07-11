@@ -7,7 +7,7 @@ const ControlBar = ({ cl1pClick, selectedHours, onHoursChange, columnStats, reco
   const [sendStatus, setSendStatus] = useState('idle'); // 'idle', 'sending', 'success'
   
   const handleSend = async () => {
-    setSendStatus('sending'); // Stays red during the request
+    setSendStatus('sending'); 
     
     try {
       const response = await fetch(`${process.env.REACT_APP_HEATERBOX_API_URL}/api/send-command`, {
@@ -17,12 +17,12 @@ const ControlBar = ({ cl1pClick, selectedHours, onHoursChange, columnStats, reco
       });
 
       if (response.ok) {
-        setSendStatus('success'); // Turns green[cite: 9]
+        setSendStatus('success'); 
       } else {
-        setSendStatus('error'); // Stays red/orange[cite: 9]
+        setSendStatus('error'); 
       }
     } catch (error) {
-      setSendStatus('error'); // Handles network/fetch failure
+      setSendStatus('error'); 
     }
 
     // Reset to idle after 3 seconds
@@ -87,8 +87,11 @@ const ControlBar = ({ cl1pClick, selectedHours, onHoursChange, columnStats, reco
           <button className="setpointup myBUTTon" onClick={() => setNewsetpoint(prev => prev + 1)}>+</button>
           <button className="setpointdown myBUTTon" onClick={() => setNewsetpoint(prev => prev - 1)}>-</button>
           <div className="setpoint value">New Setpoint:{newsetpoint}</div>
-          <button className={`setpointsend myBUTTon ${sendStatus === 'sending' ? 'sending' : ''} ${sendStatus === 'success' ? 'success' : ''}`} onClick={handleSend}>
-            {sendStatus === 'sending' ? "..." : "Send"}
+          <button className={`setpointsend myBUTTon ${sendStatus === 'sending' ? 'sending' : ''} ${sendStatus === 'success' ? 'success' : ''}`}
+              onClick={handleSend}
+              disabled={sendstatus === 'sending'}
+            >
+              {sendStatus === 'sending' ? "..." : "Send"}
           </button>
         </div>
         <div className="buttonRow">
