@@ -155,7 +155,8 @@ volatile uint8_t esp_active = 1; // 1 = Attempt communication, 0 = Skip communic
 
 volatile uint8_t CONTROL = 0;
 volatile uint8_t EXTRA = 0;
-
+volatile uint16_t raw_box = 0;
+volatile uint16_t raw_heater = 0;
 #define MAX_DUTY 100
 #define SHIFT_FACTOR 8 // Use 8 bits for 256x resolution (1/256 precision)
 
@@ -233,7 +234,7 @@ volatile uint8_t btn_menu_state = 0, btn_up_state = 0, btn_down_state = 0, btn_s
 volatile uint8_t select_mode = 0;
 
 #define main_menu 0
-#define wifi_menu 1
+#define calibration_menu 1
 #define pid_menu 2
 
 volatile uint8_t *btn_pins[] = {&btn_menu, &btn_up, &btn_down, &btn_select};
@@ -443,15 +444,15 @@ void handle_buttons(void){
                 sprintf(display_buffer[2], "F:%d L:%d H:%d", FAN, LIGHT, HEATER);
                 main_index =4;
                 break;
-            case wifi_menu:
-                sprintf(display_buffer[0], "WIFI Menu");
+            case calibration_menu:
+                sprintf(display_buffer[0], "  Calibration Menu  ");
                 sprintf(display_buffer[1], "H:%3d.%1d B:%3d.%1d", t_h / 10, t_h % 10, t_b / 10, t_b % 10);
-                sprintf(display_buffer[2], "F:%d L:%d H:%d", FAN, LIGHT, HEATER);
+                sprintf(display_buffer[2], "RawH:%5dRawB:%5d", raw_heater, raw_box);
                 break;
             case pid_menu:
                 sprintf(display_buffer[0], "PID Menu");
-                sprintf(display_buffer[1], "H:%3d.%1d B:%3d.%1d", t_h / 10, t_h % 10, t_b / 10, t_b % 10);
-                sprintf(display_buffer[2], "F:%d L:%d H:%d", FAN, LIGHT, HEATER);
+                sprintf(display_buffer[1], " under construction ");
+                sprintf(display_buffer[2], " under construction ");
                 break;
             default:
                 sprintf(display_buffer[0], "default Menu");
@@ -853,10 +854,12 @@ void main(void) {
                     adc_ready = 0;
 
                     if (!isr_channel) {
-                        t_h = heater_temp_lut[adc_val[0]];    
+                        raw_heater = adc_val[0];
+                        t_h = heater_temp_lut[raw_heater];    
                     }
                     else {
-                        t_b = box_temp_lut[adc_val[1]];
+                        raw_box = adc_val[1];
+                        t_b = box_temp_lut[raw_box];
                     }
                 }
 
