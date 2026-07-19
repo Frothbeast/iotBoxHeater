@@ -67,6 +67,7 @@ void loop() {
     }
   }  
   if (data_ready && WiFi.status() == WL_CONNECTED) {
+    client.setTimeout(3000);
     if (client.connect(SERVER_IP, SERVER_PORT)) {
       int rssi = abs(WiFi.RSSI());
       byteToHex((uint8_t)rssi, &rx_buffer[18]); 
