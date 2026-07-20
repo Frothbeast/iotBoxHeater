@@ -760,13 +760,20 @@ void main(void) {
     CONTROL = DATA_EE_Read(ADDR_CONTROL);
     
           // Splash screen (standard delay allowed here as no other tasks are running)
-    __delay_ms(2000);
+    __delay_ms(1000);
+
     lcd_cmd_direct(LCD_CLR);
+    
+    PIE1bits.RCIE = 0; 
+    INTCONbits.PEIE = 0;
     uint8_t rx_byte = wait_for_handshake(0xAA);
+    PIE1bits.RCIE = 1;
+    INTCONbits.PEIE = 1;
+    
     if (rx_byte == 0x55) {
         sprintf(display_buffer[3], "ESP OK 0x%02X", rx_byte);
     } else {
-        sprintf(display_buffer[3], "ESP FAIL 0x%02X", rx_byte);
+        sprintf(display_buffer[3], "FAIL RCREG:0x%02X", RCREG);
     }
     esp_mode = ESP_IDLE_MODE;
     lcd_move_cursor(lcd_line_addrs[2]);
