@@ -44,7 +44,7 @@ void loop() {
       serverClient.write(0x06); //ack right away
       serverClient.flush(); 
       Serial.write((uint8_t*)cmd, 4);
-      delay(50);
+      delay(500);
       serverClient.stop();
     }
   }
