@@ -159,9 +159,10 @@ volatile uint16_t raw_heater = 0;
 #define SHIFT_FACTOR 4 
 
 
-long integral_sum = 0; 
-int kp = 2; // Proportional gain
-int ki = 1; // Integral gain (very slow)
+long integral_sum = 0;
+volatile uint16_t pid_period = 600;
+int kp = 2000; // Proportional gain
+int ki = 1000; // Integral gain (very slow)
 volatile uint16_t step_counter = 0;       // Increments every 6-second interrupt
 volatile uint16_t pid_period_counter = 0;
 
@@ -192,6 +193,7 @@ uint8_t lcd_line_addrs[] = {LCD_L1, LCD_L2, LCD_L3, LCD_L4};
 #define ADDR_SP         0x04
 #define ADDR_KP         0x06
 #define ADDR_KI         0x08
+#define ADDR_period     0x10
 
 volatile int16_t t_h = 0.0;
 volatile int16_t t_b = 0.0;
@@ -219,15 +221,18 @@ volatile uint8_t pid_index = 0;
 #define H   3
 #define SP  4
 
-#define pid_I              174
-#define pid_P              184
+#define pid_I              154
+#define pid_P              164
+#define pid_PID            184
 
 #define I   0
 #define P   1
+#define PID 2
+
 
 volatile uint8_t main_cursor_position[] = {main_C, main_F, main_L, main_H, main_S};
 
-volatile uint8_t pid_cursor_position[] = {pid_I, pid_P};
+volatile uint8_t pid_cursor_position[] = {pid_I, pid_P, pid_PID};
 uint8_t last_menu_state = 0xFF;
 
 volatile uint8_t menu_press = 0, up_press = 0, down_press = 0, select_press = 0;
@@ -396,6 +401,7 @@ void __interrupt() ISR(void) {
                 esp_mode = ESP_IDLE_MODE;
                 int16_t val = (rx_buf[0]-'0')*100 + (rx_buf[1]-'0')*10 + (rx_buf[2]-'0');
                 box_setpoint = val;
+                time_to_calculate = 1;
                 DATA_EE_WriteInt(ADDR_SP, box_setpoint);
             }
         }
@@ -441,8 +447,8 @@ void handle_buttons(void){
                 break;
             case pid_menu:
                 sprintf(display_buffer[0], "PID Menu");
-                sprintf(display_buffer[2], "  Ki:%03d    Kp:%03d  ", ki, kp);
-                sprintf(display_buffer[1], "                    ");
+                sprintf(display_buffer[1], "  Ki:%03d    Kp:%03d  ", ki, kp);
+                sprintf(display_buffer[2], "PID period:%05d    ",pid_period);
                 pid_index = 0;
                 break;
             default:
@@ -492,20 +498,24 @@ void handle_buttons(void){
                 if(select_mode){        // something selected
                     switch(pid_index){
                         case I:         //ki
-                            if (ki>100){ki=100;};
-                            ki++;
+                            if (ki>50000){ki=50000;};
+                            ki = ki + 10;
                             break;
                         case P:         //kp
-                            if (kp>100){kp=100;};
-                            kp++;
-                            break;       
+                            if (kp>50000){kp=50000;};
+                            kp = kp + 10;
+                            break;
+                        case PID:         //period
+                            if (pid_period>50000){pid_period=50000;};
+                            pid_period = pid_period + 100;
+                            break;
                     }
 
                 }
                 else {                  // nothing selected
                     pid_index++;
-                    if (pid_index >1) { // move cursor
-                        pid_index = 0;
+                    if (pid_index >PID) { // move cursor
+                        pid_index = I;
                     }
                     cursor_mode = LCD_ON_CURSOR;        
                   
@@ -554,20 +564,24 @@ void handle_buttons(void){
                 if(select_mode){        // something selected
                     switch(pid_index){
                         case I:         //ki
-                            if (ki<1){ki=1;};
-                            ki--;
+                            if (ki<10){ki=10;};
+                            ki= ki - 10;
                             break;
                         case P:         //kd
-                            if (kp<1){kp=1;};
-                            kp--;
-                            break;       
+                            if (kp<10){kp=10;};
+                            kp = kp - 10;
+                            break; 
+                        case PID:         //period
+                            if (pid_period<101){pid_period=100;};
+                            pid_period = pid_period - 100;
+                            break;
                     }
 
                 }
                 else {                  // nothing selected
                    
-                    if (pid_index ==0) { // move cursor
-                        pid_index = 1;
+                    if (pid_index == I ) { // move cursor
+                        pid_index = PID + 1;
                     } 
                     pid_index--;
                     cursor_mode = LCD_ON_CURSOR;        
@@ -588,6 +602,7 @@ void handle_buttons(void){
                     switch (main_index){
                         case SP:
                             DATA_EE_WriteInt(ADDR_SP, box_setpoint);
+                            time_to_calculate = 1;
                             break;
                         case C:
                             DATA_EE_Write(ADDR_CONTROL, CONTROL);
@@ -608,6 +623,9 @@ void handle_buttons(void){
                             break;
                         case P:
                             DATA_EE_WriteInt(ADDR_KP, kp);
+                            break;
+                        case PID:
+                            DATA_EE_WriteInt(ADDR_period, pid_period);
                             break;
                         default:
                             break;
@@ -719,29 +737,30 @@ uint8_t wait_for_handshake(uint8_t send_byte) {
 }
 
 uint16_t calculate_pid(int setpoint, int current_temp) {
-    int error = setpoint - current_temp;
+    int32_t error = setpoint - current_temp;
 
     // Integral calculation with clamping (Anti-Windup)
     integral_sum += (error * ki);
     
-    // Clamp integral_sum to prevent windup
-    if (integral_sum > (MAX_DUTY << SHIFT_FACTOR)) integral_sum = (MAX_DUTY << SHIFT_FACTOR);
+    // Clamp integral_sum to prevent windup at 50000 limit
+    if (integral_sum > 50000) integral_sum = 50000;
     if (integral_sum < 0) integral_sum = 0;
 
     // Output calculation (P + I)
-    // Shift right to bring back to 0-100 scale
-    int output = ((error * kp) + (int)(integral_sum >> SHIFT_FACTOR));
+    int32_t output = (error * kp) + integral_sum;
 
-    // Clamp total output to 0-100 range
-    if (output > MAX_DUTY) output = MAX_DUTY;
+    // Clamp total output to 0-50000 range
+    if (output > 50000) output = 50000;
     if (output < 0) output = 0;
 
-    uint16_t steps = (uint16_t)(output >> 1);      // shift is the same as /2 so 50 steps for 100% at 10Hz means 5s period 
+    // Divide by 1000 to map 0-50000 to ~0-50
+    uint16_t steps = (uint16_t)(output / 1000); 
     return steps;
 }
 
 void control_output() {
     if (time_to_calculate){
+        time_to_calculate = 0;
         on_time = calculate_pid(box_setpoint, t_b);
     }
     if (step_counter < on_time && t_h/10 <= heater_limit && CONTROL == 1) {
@@ -804,9 +823,11 @@ void main(void) {
         DATA_EE_Write(ADDR_LIGHT, 0);
         DATA_EE_Write(ADDR_CONTROL, 0);
         DATA_EE_WriteInt(ADDR_SP, 400);
-        DATA_EE_WriteInt(ADDR_KI, 1);
-        DATA_EE_WriteInt(ADDR_KP, 2);
+        DATA_EE_WriteInt(ADDR_KI, 1000);
+        DATA_EE_WriteInt(ADDR_KP, 2000);
+        DATA_EE_WriteInt(ADDR_period, 600);
     } 
+    pid_period = DATA_EE_ReadInt(ADDR_period);
     ki = DATA_EE_ReadInt(ADDR_KI);
     kp = DATA_EE_ReadInt(ADDR_KP);
     box_setpoint = DATA_EE_ReadInt(ADDR_SP);
@@ -914,12 +935,12 @@ void main(void) {
                 flag_10hz = 0;
                 
                 step_counter++;
-                if (step_counter == 60){
+                if (step_counter >= 60){
                     step_counter = 0;
                 }
                 
                 pid_period_counter++;
-                if (pid_period_counter == 3000){
+                if (pid_period_counter >= pid_period){
                     pid_period_counter = 0;
                     time_to_calculate = 1;
                 }
@@ -945,8 +966,9 @@ void main(void) {
                 }
                 if (menu_state == pid_menu){
                     sprintf(display_buffer[0], "PID Menu");
-                    sprintf(display_buffer[2], "  Ki:%03d    Kp:%03d  ", ki, kp);
-                    sprintf(display_buffer[1], "                    ");
+                    sprintf(display_buffer[1], "  Ki:%05d  Kp:%05d", ki, kp);
+                    sprintf(display_buffer[2], "PID period:%05d    ",pid_period);
+                    sprintf(display_buffer[2], "step:%05d on:%05d",step_counter ,on_time);
                 }
                 send_to_display();
             
