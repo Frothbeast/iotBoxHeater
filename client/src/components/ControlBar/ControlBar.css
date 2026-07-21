@@ -215,11 +215,11 @@ input[type="submit"] {
   transition: background-color 0.3s;
 }
 .setpointsend.sending {
-  background-color: red;
+  background-color: red !important;
 }
 .setpointsend.success {
-  background-color: green;
+  background-color: green !important;
 }
 .setpointsend.error {
-  background-color: orange; /* Or red, to indicate persistent failure */
+  background-color: orange !important; /* Or red, to indicate persistent failure */
 }

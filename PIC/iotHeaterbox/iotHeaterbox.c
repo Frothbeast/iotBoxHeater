@@ -146,6 +146,8 @@ const int16_t box_temp_lut[1024] = {
 };
 
 
+
+
 #define _XTAL_FREQ 20000000
 
 volatile uint16_t esp_timeout_counter = 0;
@@ -153,6 +155,17 @@ volatile uint8_t esp_active = 1; // 1 = Attempt communication, 0 = Skip communic
 
 volatile uint8_t CONTROL = 0;
 volatile uint8_t EXTRA = 0;
+volatile uint16_t raw_box = 0;
+volatile uint16_t raw_heater = 0;
+#define MAX_DUTY 100
+#define SHIFT_FACTOR 8 // Use 8 bits for 256x resolution (1/256 precision)
+
+
+long integral_sum = 0; 
+int kp = 2; // Proportional gain
+int ki = 1; // Integral gain (very slow)
+int current_duty_steps = 0; // 0 to 20 (representing 0% to 100%)
+int step_counter = 0;       // Increments every 6-second interrupt
 
 #define HEATER LATCbits.LATC3
 #define FAN    LATCbits.LATC1
@@ -187,7 +200,7 @@ volatile uint16_t t_b = 0.0;
 volatile uint8_t adc_ready = 0;
 volatile uint8_t isr_channel = 0;
 volatile int16_t box_setpoint = 0;
-volatile int16_t heater_limit = 150;
+volatile int16_t heater_limit = 100;
 volatile uint16_t adc_val[2];
 volatile uint8_t flag_10hz = 0;
 volatile uint8_t wifi_ticks = 0;
@@ -221,7 +234,7 @@ volatile uint8_t btn_menu_state = 0, btn_up_state = 0, btn_down_state = 0, btn_s
 volatile uint8_t select_mode = 0;
 
 #define main_menu 0
-#define wifi_menu 1
+#define calibration_menu 1
 #define pid_menu 2
 
 volatile uint8_t *btn_pins[] = {&btn_menu, &btn_up, &btn_down, &btn_select};
@@ -369,7 +382,7 @@ void __interrupt() ISR(void) {
     if (PIR1bits.TMR1IF) {
         static uint16_t timer1_counter = 0;
         timer1_counter++;
-        if (timer1_counter >= 572) {
+        if (timer1_counter >= 57) {
             time_to_send = 1;
             timer1_counter = 0;
         }
@@ -431,15 +444,15 @@ void handle_buttons(void){
                 sprintf(display_buffer[2], "F:%d L:%d H:%d", FAN, LIGHT, HEATER);
                 main_index =4;
                 break;
-            case wifi_menu:
-                sprintf(display_buffer[0], "WIFI Menu");
+            case calibration_menu:
+                sprintf(display_buffer[0], "  Calibration Menu  ");
                 sprintf(display_buffer[1], "H:%3d.%1d B:%3d.%1d", t_h / 10, t_h % 10, t_b / 10, t_b % 10);
-                sprintf(display_buffer[2], "F:%d L:%d H:%d", FAN, LIGHT, HEATER);
+                sprintf(display_buffer[2], "RawH:%5dRawB:%5d", raw_heater, raw_box);
                 break;
             case pid_menu:
                 sprintf(display_buffer[0], "PID Menu");
-                sprintf(display_buffer[1], "H:%3d.%1d B:%3d.%1d", t_h / 10, t_h % 10, t_b / 10, t_b % 10);
-                sprintf(display_buffer[2], "F:%d L:%d H:%d", FAN, LIGHT, HEATER);
+                sprintf(display_buffer[1], " under construction ");
+                sprintf(display_buffer[2], " under construction ");
                 break;
             default:
                 sprintf(display_buffer[0], "default Menu");
@@ -649,6 +662,44 @@ uint8_t wait_for_handshake(uint8_t send_byte) {
     return 0;
 }
 
+void calculate_pid(int setpoint, int current_temp) {
+    int error = setpoint - current_temp;
+
+    // Integral calculation with clamping (Anti-Windup)
+    integral_sum += (error * ki);
+    
+    // Clamp integral_sum to prevent windup
+    if (integral_sum > (MAX_DUTY << SHIFT_FACTOR)) integral_sum = (MAX_DUTY << SHIFT_FACTOR);
+    if (integral_sum < 0) integral_sum = 0;
+
+    // Output calculation (P + I)
+    // Shift right to bring back to 0-100 scale
+    int output = ((error * kp) + (integral_sum >> SHIFT_FACTOR));
+
+    // Clamp total output to 0-100 range
+    if (output > MAX_DUTY) output = MAX_DUTY;
+    if (output < 0) output = 0;
+
+    // Convert 0-100 to your 20 steps (5% increments)
+    // This gives you 0, 5, 10... 100
+    int current_duty_steps = (output / 5) * 5; 
+    
+}
+
+void update_heater_state() {
+    // 1. Calculate duty_steps (0-20) from your PID logic
+    // (Ensure your PID output is scaled to 0-20 instead of 0-100)
+    
+    // 2. Control logic
+    if (step_counter < current_duty_steps) {
+        // Heater ON
+        HEATER = 1; 
+    } else {
+        // Heater OFF
+        HEATER = 0;
+    }
+}
+
 void main(void) {
     // 20MHz Clock, 9600 Baud @ BRGH=1
     TXSTAbits.BRGH = 1;       // High Speed mode
@@ -709,13 +760,20 @@ void main(void) {
     CONTROL = DATA_EE_Read(ADDR_CONTROL);
     
           // Splash screen (standard delay allowed here as no other tasks are running)
-    __delay_ms(2000);
+    __delay_ms(1000);
+
     lcd_cmd_direct(LCD_CLR);
+    
+    PIE1bits.RCIE = 0; 
+    INTCONbits.PEIE = 0;
     uint8_t rx_byte = wait_for_handshake(0xAA);
+    PIE1bits.RCIE = 1;
+    INTCONbits.PEIE = 1;
+    
     if (rx_byte == 0x55) {
         sprintf(display_buffer[3], "ESP OK 0x%02X", rx_byte);
     } else {
-        sprintf(display_buffer[3], "ESP FAIL 0x%02X", rx_byte);
+        sprintf(display_buffer[3], "FAIL RCREG:0x%02X", RCREG);
     }
     esp_mode = ESP_IDLE_MODE;
     lcd_move_cursor(lcd_line_addrs[2]);
@@ -764,6 +822,15 @@ void main(void) {
             static uint8_t retry_count = 0;
             if (time_to_send) {
                 time_to_send = 0;
+                
+                // Flush RX buffer before transmitting
+                INTCONbits.GIE = 0; // Disable interrupts to ensure atomic clearing
+                for(uint8_t i = 0; i < 13; i++) {
+                    rx_buf[i] = 0;
+                }
+                rx_idx = 0;
+                esp_mode = ESP_IDLE_MODE; // Ensure ESP is in idle mode before sending
+                INTCONbits.GIE = 1; // Restore interrupts
 
                 if (esp_active) {
                     char packet_buffer[24];
@@ -794,10 +861,12 @@ void main(void) {
                     adc_ready = 0;
 
                     if (!isr_channel) {
-                        t_h = heater_temp_lut[adc_val[0]];    
+                        raw_heater = adc_val[0];
+                        t_h = heater_temp_lut[raw_heater];    
                     }
                     else {
-                        t_b = box_temp_lut[adc_val[1]];
+                        raw_box = adc_val[1];
+                        t_b = box_temp_lut[raw_box];
                     }
                 }
 

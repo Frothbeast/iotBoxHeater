@@ -90,7 +90,7 @@ def send_command():
         command_bytes = prefix + payload
         
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(2)
+            s.settimeout(10)
             s.connect((HEATER_ESP_IP, int(COLLECTOR_HOST_PORT)))
             s.sendall(command_bytes)
             # Wait for 1-byte ACK from ESP

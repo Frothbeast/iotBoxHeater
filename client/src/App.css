@@ -23,6 +23,13 @@
 
 }
 
+
+@media (max-width:600px) {
+  :root {
+    --controlBar-height: 30vw;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
  :root{
     --menu-colour: var(--main-background);
