@@ -163,6 +163,7 @@ long integral_sum = 0;
 int kp = 2; // Proportional gain
 int ki = 1; // Integral gain (very slow)
 volatile uint16_t step_counter = 0;       // Increments every 6-second interrupt
+volatile uint16_t pid_period_counter = 0;
 
 #define HEATER LATCbits.LATC3
 #define FAN    LATCbits.LATC1
@@ -913,8 +914,13 @@ void main(void) {
                 flag_10hz = 0;
                 
                 step_counter++;
-                if (step_counter == 3000){
+                if (step_counter == 60){
                     step_counter = 0;
+                }
+                
+                pid_period_counter++;
+                if (pid_period_counter == 3000){
+                    pid_period_counter = 0;
                     time_to_calculate = 1;
                 }
 
