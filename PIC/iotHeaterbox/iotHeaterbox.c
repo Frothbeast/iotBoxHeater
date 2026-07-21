@@ -142,19 +142,17 @@ const int16_t box_temp_lut[1024] = {
     -115, -118, -121, -123, -126, -129, -132, -135, -138, -141, -144, -147, -150, -153, -156, -160,
     -163, -166, -170, -173, -177, -181, -184, -188, -192, -196, -200, -204, -209, -213, -218, -222,
     -227, -232, -237, -242, -247, -253, -258, -264, -270, -277, -283, -290, -297, -305, -313, -321,
-    -330, -339, -349, -359, -371, -383, -396, -411, -428, -446, -468, -494, -527, -527, -527, -527,
+    -330, -339, -349, -359, -371, -383, -396, -411, -428, -446, -468, -494, -521
 };
-
-
-
 
 #define _XTAL_FREQ 20000000
 
 volatile uint16_t esp_timeout_counter = 0;
 volatile uint8_t esp_active = 1; // 1 = Attempt communication, 0 = Skip communication
-
+volatile uint8_t time_to_calculate = 1;
 volatile uint8_t CONTROL = 0;
 volatile uint8_t EXTRA = 0;
+volatile uint8_t on_time = 0;
 volatile uint16_t raw_box = 0;
 volatile uint16_t raw_heater = 0;
 #define MAX_DUTY 100
@@ -164,7 +162,6 @@ volatile uint16_t raw_heater = 0;
 long integral_sum = 0; 
 int kp = 2; // Proportional gain
 int ki = 1; // Integral gain (very slow)
-int current_duty_steps = 0; // 0 to 20 (representing 0% to 100%)
 int step_counter = 0;       // Increments every 6-second interrupt
 
 #define HEATER LATCbits.LATC3
@@ -207,6 +204,7 @@ volatile uint8_t wifi_ticks = 0;
 
 volatile uint8_t menu_state = 0; 
 volatile uint8_t main_index = 4;
+volatile uint8_t pid_index = 0;
 
 #define main_C              146
 #define main_F              170
@@ -220,7 +218,15 @@ volatile uint8_t main_index = 4;
 #define H   3
 #define SP  4
 
-volatile uint8_t cursor_position[] = {main_C, main_F, main_L, main_H, main_S};
+#define pid_I              174
+#define pid_P              184
+
+#define I   0
+#define P   1
+
+volatile uint8_t main_cursor_position[] = {main_C, main_F, main_L, main_H, main_S};
+
+volatile uint8_t pid_cursor_position[] = {pid_I, pid_P};
 uint8_t last_menu_state = 0xFF;
 
 volatile uint8_t menu_press = 0, up_press = 0, down_press = 0, select_press = 0;
@@ -246,7 +252,6 @@ uint8_t lcd_lines[] = {LCD_L1, LCD_L2, LCD_L3, LCD_L4};
 uint8_t current_line_idx = 0;
 char display_buffer[4][24]; // 4 lines, 20 chars + null terminator
 
-float Kp = 10.0, Ki = 0.5, Kd = 0.1;
 uint8_t fan_mode = 0;
 uint8_t control_active = 1;
 
@@ -318,14 +323,14 @@ void poll_buttons(void) {
     }
 }
 
-void DATA_EE_Write(uint8_t addr, uint8_t data) {
+void DATA_EE_Write(uint8_t addr, uint8_t data) __reentrant {
     EEADR = addr; EEDATA = data;
     EECON1bits.EEPGD = 0; EECON1bits.CFGS = 0; EECON1bits.WREN = 1;
     INTCONbits.GIE = 0; EECON2 = 0x55; EECON2 = 0xAA; EECON1bits.WR = 1;
     INTCONbits.GIE = 1; while(EECON1bits.WR) { ; } EECON1bits.WREN = 0;
 }
 
-uint8_t DATA_EE_Read(uint8_t addr) {
+uint8_t DATA_EE_Read(uint8_t addr) __reentrant {
     EEADR = addr; EECON1bits.EEPGD = 0; EECON1bits.CFGS = 0;
     EECON1bits.RD = 1; return EEDATA;
 }
@@ -413,6 +418,7 @@ void handle_buttons(void){
         menu_press=0;
         menu_state++;
         
+        select_mode = 0;
         cursor_mode = LCD_ON_NO_CURSOR;
         
         if (menu_state > pid_menu) {
@@ -434,8 +440,9 @@ void handle_buttons(void){
                 break;
             case pid_menu:
                 sprintf(display_buffer[0], "PID Menu");
-                sprintf(display_buffer[1], " under construction ");
-                sprintf(display_buffer[2], " under construction ");
+                sprintf(display_buffer[2], "  Ki:%03d    Kp:%03d  ", ki, kp);
+                sprintf(display_buffer[1], "                    ");
+                pid_index = 0;
                 break;
             default:
                 sprintf(display_buffer[0], "default Menu");
@@ -478,7 +485,32 @@ void handle_buttons(void){
                     cursor_mode = LCD_ON_CURSOR;        
                   
                 }
-            break;
+                break;
+            
+            case pid_menu:              // up press
+                if(select_mode){        // something selected
+                    switch(pid_index){
+                        case I:         //ki
+                            if (ki>100){ki=100;};
+                            ki++;
+                            break;
+                        case P:         //kp
+                            if (kp>100){kp=100;};
+                            kp++;
+                            break;       
+                    }
+
+                }
+                else {                  // nothing selected
+                    pid_index++;
+                    if (pid_index >1) { // move cursor
+                        pid_index = 0;
+                    }
+                    cursor_mode = LCD_ON_CURSOR;        
+                  
+                }
+                break;
+                
         }
 
     }
@@ -515,36 +547,78 @@ void handle_buttons(void){
 
                     cursor_mode = LCD_ON_CURSOR;        
                 }
-            break;
+                break;
+            
+            case pid_menu:              // down press
+                if(select_mode){        // something selected
+                    switch(pid_index){
+                        case I:         //ki
+                            if (ki<1){ki=1;};
+                            ki--;
+                            break;
+                        case P:         //kd
+                            if (kp<1){kp=1;};
+                            kp--;
+                            break;       
+                    }
+
+                }
+                else {                  // nothing selected
+                   
+                    if (pid_index ==0) { // move cursor
+                        pid_index = 1;
+                    } 
+                    pid_index--;
+                    cursor_mode = LCD_ON_CURSOR;        
+                  
+                }
+                break;
                 
         }
 
     }
     if (select_press){
         select_press=0;
+
         if (select_mode){
-            select_mode=0;
-            switch (main_index){
-                case SP:
-                    DATA_EE_WriteInt(ADDR_SP, box_setpoint);
-                    break;
-                case C:
-                    DATA_EE_Write(ADDR_CONTROL, CONTROL);
-                    break;
-                case F:
-                    DATA_EE_Write(ADDR_FAN, FAN);
-                    break;
-                case L:
-                    DATA_EE_Write(ADDR_LIGHT, LIGHT);
-                    break;
-                default:
-                    break;
+            select_mode=0; 
+            switch (menu_state){
+                case main_menu:
+                    switch (main_index){
+                        case SP:
+                            DATA_EE_WriteInt(ADDR_SP, box_setpoint);
+                            break;
+                        case C:
+                            DATA_EE_Write(ADDR_CONTROL, CONTROL);
+                            break;
+                        case F:
+                            DATA_EE_Write(ADDR_FAN, FAN);
+                            break;
+                        case L:
+                            DATA_EE_Write(ADDR_LIGHT, LIGHT);
+                            break;
+                        default:
+                            break;
+                    }
+                case pid_menu:
+                    switch(pid_index){
+                        case I:
+                            DATA_EE_WriteInt(ADDR_KI, ki);
+                            break;
+                        case P:
+                            DATA_EE_WriteInt(ADDR_KP, kp);
+                            break;
+                        default:
+                            break;
+                    }
+                    
             }
             cursor_mode = LCD_ON_CURSOR;
         }
-        else {
+        else {                      // set cursor on
             switch (menu_state){
                 case main_menu:
+                case pid_menu: 
                     cursor_mode = LCD_ON_CURSOR_BLINK;
                     lcd_cmd_direct(cursor_mode);
                     select_mode = 1;
@@ -570,7 +644,17 @@ void send_to_display(void) {
     if (current_line_idx >= 4) {
         current_line_idx = 0;
     } 
-    lcd_move_cursor(cursor_position[main_index]);
+    switch(menu_state){
+        case main_menu:
+            lcd_move_cursor(main_cursor_position[main_index]);
+            break;
+        case pid_menu:
+            lcd_move_cursor(pid_cursor_position[pid_index]);
+            break;
+        default:
+            break;
+    }
+    
     lcd_cmd_direct(cursor_mode);
     INTCONbits.GIE = old_gie;// restore interrupts
 }
@@ -633,7 +717,7 @@ uint8_t wait_for_handshake(uint8_t send_byte) {
     return 0;
 }
 
-void calculate_pid(int setpoint, int current_temp) {
+uint8_t calculate_pid(int setpoint, int current_temp) {
     int error = setpoint - current_temp;
 
     // Integral calculation with clamping (Anti-Windup)
@@ -651,32 +735,18 @@ void calculate_pid(int setpoint, int current_temp) {
     if (output > MAX_DUTY) output = MAX_DUTY;
     if (output < 0) output = 0;
 
-    // Convert 0-100 to your 20 steps (5% increments)
-    // This gives you 0, 5, 10... 100
-    int current_duty_steps = (output / 5) * 5; 
-    
+    uint8_t steps = (uint8_t)(output >> 1);      // shift is the same as /2 so 50 steps for 100% at 10Hz means 5s period 
+    return steps;
 }
 
-void update_heater_state() {
-    if (step_counter < current_duty_steps) {
+void control_output() {
+    if (time_to_calculate){
+        on_time = calculate_pid(box_setpoint, t_b);
+    }
+    if (step_counter < on_time && t_h/10 <= heater_limit && CONTROL == 1) {
         HEATER = 1; 
     } else {
         HEATER = 0;
-    }
-}
-
-void control_output(void){
-    if (select_mode && main_index == 2 && menu_state==main_menu){
-        // do nothing
-    }
-    else{
-        if (t_h/10 <= heater_limit && CONTROL == 1){
-            calculate_pid(box_setpoint, t_b);
-            update_heater_state();
-        }
-        else {
-            HEATER = 0;
-        }
     }
 }
 
@@ -733,11 +803,16 @@ void main(void) {
         DATA_EE_Write(ADDR_LIGHT, 0);
         DATA_EE_Write(ADDR_CONTROL, 0);
         DATA_EE_WriteInt(ADDR_SP, 400);
+        DATA_EE_WriteInt(ADDR_KI, 1);
+        DATA_EE_WriteInt(ADDR_KP, 2);
     } 
+    ki = DATA_EE_ReadInt(ADDR_KI);
+    kp = DATA_EE_ReadInt(ADDR_KP);
     box_setpoint = DATA_EE_ReadInt(ADDR_SP);
     FAN = DATA_EE_Read(ADDR_FAN);
     LIGHT = DATA_EE_Read(ADDR_LIGHT);
     CONTROL = DATA_EE_Read(ADDR_CONTROL);
+    
     
           // Splash screen (standard delay allowed here as no other tasks are running)
     __delay_ms(1000);
@@ -836,6 +911,12 @@ void main(void) {
 
             if (flag_10hz) {
                 flag_10hz = 0;
+                
+                step_counter++;
+                if (step_counter == 60){
+                    step_counter = 0;
+                    time_to_calculate = 1;
+                }
 
                 if (adc_ready) {
                     adc_ready = 0;
@@ -856,7 +937,11 @@ void main(void) {
                     sprintf(display_buffer[2], "F:%d L:%d H:%d S:%3d.%1d", FAN, LIGHT, HEATER, box_setpoint / 10, box_setpoint % 10);
 
                 }
-
+                if (menu_state == pid_menu){
+                    sprintf(display_buffer[0], "PID Menu");
+                    sprintf(display_buffer[2], "  Ki:%03d    Kp:%03d  ", ki, kp);
+                    sprintf(display_buffer[1], "                    ");
+                }
                 send_to_display();
             
             }
