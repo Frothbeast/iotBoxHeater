@@ -195,8 +195,8 @@ uint8_t lcd_line_addrs[] = {LCD_L1, LCD_L2, LCD_L3, LCD_L4};
 #define ADDR_KP         0x06
 #define ADDR_KI         0x08
 
-volatile uint16_t t_h = 0.0;
-volatile uint16_t t_b = 0.0;
+volatile int16_t t_h = 0.0;
+volatile int16_t t_b = 0.0;
 volatile uint8_t adc_ready = 0;
 volatile uint8_t isr_channel = 0;
 volatile int16_t box_setpoint = 0;
@@ -276,12 +276,6 @@ void lcd_cmd_direct(uint8_t cmd) {
     __delay_ms(2);
 }
 
-void lcd_cmd_with_prefix(uint8_t cmd) {
-    soft_putch(255);
-    soft_putch(cmd);
-    __delay_ms(2);
-}
-
 void lcd_move_cursor(uint8_t address) {
     // Just send the address command directly to the display
     soft_putch(address); 
@@ -336,28 +330,17 @@ uint8_t DATA_EE_Read(uint8_t addr) {
     EECON1bits.RD = 1; return EEDATA;
 }
 
-void DATA_EE_WriteInt(uint8_t addr, int16_t val) {
+void  DATA_EE_WriteInt(uint8_t addr, int16_t val) __reentrant {
     // Write High Byte
     DATA_EE_Write(addr, (uint8_t)(val >> 8));
     // Write Low Byte
     DATA_EE_Write(addr + 1, (uint8_t)(val & 0xFF));
 }
 
-int16_t DATA_EE_ReadInt(uint8_t addr) {
+int16_t DATA_EE_ReadInt(uint8_t addr) __reentrant {
     uint8_t high = DATA_EE_Read(addr);
     uint8_t low = DATA_EE_Read(addr + 1);
     return (int16_t)((high << 8) | low);
-}
-
-void eeprom_write_f(uint8_t addr, float val) {
-    uint8_t *p = (uint8_t *)&val;
-    for(uint8_t i=0; i<4; i++) DATA_EE_Write(addr+i, p[i]);
-}
-
-float eeprom_read_f(uint8_t addr) {
-    float val; uint8_t *p = (uint8_t *)&val;
-    for(uint8_t i=0; i<4; i++) p[i] = DATA_EE_Read(addr+i);
-    return val;
 }
 
 void __interrupt() ISR(void) { 
@@ -573,19 +556,7 @@ void handle_buttons(void){
     }
 }
 
-void control_output(void){
-    if (select_mode && main_index == 2 && menu_state==main_menu){
-        // do nothing
-    }
-    else{
-        if (t_b <= box_setpoint && t_h/10 <= heater_limit && CONTROL == 1){
-            HEATER = 1;
-        }
-        else {
-            HEATER = 0;
-        }
-    }
-}
+
 
 void send_to_display(void) {
     
@@ -674,7 +645,7 @@ void calculate_pid(int setpoint, int current_temp) {
 
     // Output calculation (P + I)
     // Shift right to bring back to 0-100 scale
-    int output = ((error * kp) + (integral_sum >> SHIFT_FACTOR));
+    int output = ((error * kp) + (int)(integral_sum >> SHIFT_FACTOR));
 
     // Clamp total output to 0-100 range
     if (output > MAX_DUTY) output = MAX_DUTY;
@@ -687,16 +658,25 @@ void calculate_pid(int setpoint, int current_temp) {
 }
 
 void update_heater_state() {
-    // 1. Calculate duty_steps (0-20) from your PID logic
-    // (Ensure your PID output is scaled to 0-20 instead of 0-100)
-    
-    // 2. Control logic
     if (step_counter < current_duty_steps) {
-        // Heater ON
         HEATER = 1; 
     } else {
-        // Heater OFF
         HEATER = 0;
+    }
+}
+
+void control_output(void){
+    if (select_mode && main_index == 2 && menu_state==main_menu){
+        // do nothing
+    }
+    else{
+        if (t_h/10 <= heater_limit && CONTROL == 1){
+            calculate_pid(box_setpoint, t_b);
+            update_heater_state();
+        }
+        else {
+            HEATER = 0;
+        }
     }
 }
 
