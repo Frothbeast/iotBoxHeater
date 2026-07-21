@@ -152,17 +152,17 @@ volatile uint8_t esp_active = 1; // 1 = Attempt communication, 0 = Skip communic
 volatile uint8_t time_to_calculate = 1;
 volatile uint8_t CONTROL = 0;
 volatile uint8_t EXTRA = 0;
-volatile uint8_t on_time = 0;
+volatile uint16_t on_time = 0;
 volatile uint16_t raw_box = 0;
 volatile uint16_t raw_heater = 0;
 #define MAX_DUTY 100
-#define SHIFT_FACTOR 8 // Use 8 bits for 256x resolution (1/256 precision)
+#define SHIFT_FACTOR 4 
 
 
 long integral_sum = 0; 
 int kp = 2; // Proportional gain
 int ki = 1; // Integral gain (very slow)
-int step_counter = 0;       // Increments every 6-second interrupt
+volatile uint16_t step_counter = 0;       // Increments every 6-second interrupt
 
 #define HEATER LATCbits.LATC3
 #define FAN    LATCbits.LATC1
@@ -717,7 +717,7 @@ uint8_t wait_for_handshake(uint8_t send_byte) {
     return 0;
 }
 
-uint8_t calculate_pid(int setpoint, int current_temp) {
+uint16_t calculate_pid(int setpoint, int current_temp) {
     int error = setpoint - current_temp;
 
     // Integral calculation with clamping (Anti-Windup)
@@ -735,7 +735,7 @@ uint8_t calculate_pid(int setpoint, int current_temp) {
     if (output > MAX_DUTY) output = MAX_DUTY;
     if (output < 0) output = 0;
 
-    uint8_t steps = (uint8_t)(output >> 1);      // shift is the same as /2 so 50 steps for 100% at 10Hz means 5s period 
+    uint16_t steps = (uint16_t)(output >> 1);      // shift is the same as /2 so 50 steps for 100% at 10Hz means 5s period 
     return steps;
 }
 
@@ -913,7 +913,7 @@ void main(void) {
                 flag_10hz = 0;
                 
                 step_counter++;
-                if (step_counter == 60){
+                if (step_counter == 3000){
                     step_counter = 0;
                     time_to_calculate = 1;
                 }
