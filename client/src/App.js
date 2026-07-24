@@ -7,7 +7,7 @@ import { calculateColumnStats  } from './utils/heaterStats';
 import './App.css';
 
 function App() {
-  const [selectedHours, setSelectedHours] = useState(24);
+  const [selectedHours, setSelectedHours] = useState(4);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   
   const { heaterRecords, isLoading } = useHeaterData(selectedHours);
