@@ -8,7 +8,7 @@ import './App.css';
 
 function App() {
   const [selectedHours, setSelectedHours] = useState(4);
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
   
   const { heaterRecords, isLoading } = useHeaterData(selectedHours);
 
